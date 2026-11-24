@@ -875,7 +875,7 @@
           if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
             // Fix TTS abbreviation expansion ("Station E" -> "Station East") by spelling the vowel phonetically for speech only
-            const spokenStation = String(stationId).replace(/\bStation\s+E\b/i, 'Station Eee');
+            const spokenStation = String(stationId).replace(/\bStation\s+E\b/i, 'Station "e"');
             const text = `Now serving number ${ticketNum} at ${spokenStation}`;
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 0.9;
