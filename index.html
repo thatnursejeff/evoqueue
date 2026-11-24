@@ -18,7 +18,7 @@
       </a>
       <div class="flex items-center gap-2 mt-0.5">
         <button type="button" onclick="openChangelog()" style="font-size: 10px;" class="text-gray-400 hover:text-white font-mono leading-none transition focus:outline-none" title="Click to view recent changes">
-          v1.3.3 - Changelog
+          v1.3.4 - Changelog
         </button>
         <span class="text-gray-700 text-[10px]">•</span>
         <span id="sync-status-badge" class="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400">
@@ -250,7 +250,7 @@
       <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 class="text-2xl font-black text-black">Recovery Station Monitor</h2>
-          <p class="text-xs text-gray-500">Configure layout, tap a waiting client pill then tap any vacant chair to seat, and monitor timers.</p>
+          <p class="text-xs text-gray-500">Tap a waiting client pill (or Move on an occupied chair), then tap any vacant chair to seat.</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
@@ -281,6 +281,22 @@
           <select id="recoveryRowFilter" onchange="renderRecoveryGrid()" class="bg-gray-100 border text-black font-bold text-xs px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-black">
             <option value="ALL">All Rows</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Active Seat-Move Banner (Shown when moving an already-seated client) -->
+      <div id="moving-client-banner" class="hidden bg-sky-950 text-white border border-sky-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md">
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 bg-sky-400 text-black text-xs font-black rounded-lg uppercase">Moving</span>
+          <span id="moving-client-label" class="text-sm font-bold">Client #-- — tap any vacant chair to relocate</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="unseatMovingClient()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black rounded-lg transition">
+            Return to Awaiting
+          </button>
+          <button type="button" onclick="cancelRecoverySelection()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold rounded-lg transition">
+            Cancel
+          </button>
         </div>
       </div>
 
@@ -478,19 +494,32 @@
       
       <div class="space-y-4 text-sm max-h-72 overflow-y-auto pr-1">
 
-        <!-- VERSION 1.3.3 -->
+        <!-- VERSION 1.3.4 -->
         <div>
           <div class="flex items-center justify-between mb-1">
-            <span class="font-black text-black text-sm">Version 1.3.3</span>
+            <span class="font-black text-black text-sm">Version 1.3.4</span>
             <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Current</span>
           </div>
           <ul class="space-y-1.5 text-gray-600 text-xs">
             <li class="flex items-start space-x-2">
               <span class="text-black font-bold">•</span>
+              <span>Added seat-to-seat client relocation on the Recovery screen: tap "Move" on any occupied chair and tap any vacant chair to transfer while keeping their active countdown timer intact.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.3 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.3</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
               <span>Added one-tap Recovery seating: tap a client pill in the ready banner, then tap any vacant chair to assign immediately.</span>
             </li>
             <li class="flex items-start space-x-2">
-              <span class="text-black font-bold">•</span>
+              <span class="text-gray-400 font-bold">•</span>
               <span>Replaced fixed Recovery grid dropdowns with flexible numeric inputs supporting any number of rows and seats per row.</span>
             </li>
           </ul>
@@ -630,7 +659,7 @@
     let isAdminAuthenticated = false;
     let latestQueueData = [];
     let autoDischargedTickets = new Set(); // Prevents duplicate auto-discharge calls
-    let selectedRecoveryTicket = null; // Holds ticket selected via tap-to-seat pill
+    let selectedRecoveryTicket = null; // Holds ticket selected via tap-to-seat pill or Move button
 
     const ADMIN_PIN = "9999"; // Default PIN for Clinic Lead Interface
     const STAFF_PIN = "5050"; // Default PIN for Staff Session Access
@@ -859,8 +888,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (selectedRecoveryTicket) {
-          selectedRecoveryTicket = null;
-          renderRecoveryGrid();
+          cancelRecoverySelection();
           return;
         }
         switchTab('register');
@@ -1307,6 +1335,18 @@
       renderRecoveryGrid();
     }
 
+    function cancelRecoverySelection() {
+      selectedRecoveryTicket = null;
+      renderRecoveryGrid();
+    }
+
+    function unseatMovingClient() {
+      if (!selectedRecoveryTicket) return;
+      const ticketToUnseat = selectedRecoveryTicket;
+      selectedRecoveryTicket = null;
+      assignSeatToClient('', ticketToUnseat);
+    }
+
     function getRemainingRecoveryMs(record) {
       const reqStr = String(record.RecoveryRequired || '').trim();
       const mins = parseInt(reqStr.replace('m', ''), 10);
@@ -1349,10 +1389,11 @@
       const unassigned = inRecovery.filter(r => !String(r.RecoverySeat || '').trim());
       const seated = inRecovery.filter(r => String(r.RecoverySeat || '').trim() !== '');
 
-      // Clear selectedRecoveryTicket if that client was already seated or discharged
+      // Clear selectedRecoveryTicket if that client was already discharged
+      let selectedRecord = null;
       if (selectedRecoveryTicket) {
-        const stillUnassigned = unassigned.some(r => String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === selectedRecoveryTicket);
-        if (!stillUnassigned) {
+        selectedRecord = inRecovery.find(r => String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === selectedRecoveryTicket) || null;
+        if (!selectedRecord) {
           selectedRecoveryTicket = null;
         }
       }
@@ -1364,6 +1405,19 @@
 
       setSafeText('recovery-unassigned-count', unassigned.length);
       setSafeText('recovery-seated-count', `${seated.length} / ${totalCapacity}`);
+
+      // Moving-client banner (when a currently seated client is selected via "Move")
+      const movingBanner = document.getElementById('moving-client-banner');
+      const movingLabel = document.getElementById('moving-client-label');
+      const selectedCurrentSeat = selectedRecord ? String(selectedRecord.RecoverySeat || '').trim() : '';
+      if (movingBanner && movingLabel) {
+        if (selectedRecoveryTicket && selectedCurrentSeat) {
+          movingBanner.classList.remove('hidden');
+          movingLabel.innerText = `Relocating Client #${selectedRecoveryTicket} (currently in ${selectedCurrentSeat}) — tap any vacant chair below`;
+        } else {
+          movingBanner.classList.add('hidden');
+        }
+      }
 
       const banner = document.getElementById('unassigned-recovery-banner');
       const pillsContainer = document.getElementById('unassigned-recovery-pills');
@@ -1386,7 +1440,7 @@
             `;
           }).join('');
           if (hintEl) {
-            hintEl.innerText = selectedRecoveryTicket
+            hintEl.innerText = (selectedRecoveryTicket && !selectedCurrentSeat)
               ? `Selected #${selectedRecoveryTicket} — tap any vacant chair below to seat (or Esc to cancel)`
               : 'Tap a client pill, then tap any vacant chair';
           }
@@ -1415,15 +1469,19 @@
           const occupant = seatMap[seatId];
 
           if (occupant) {
-            const ticket = occupant.TicketNumber || occupant.Ticketnumber || occupant.ticketNum;
+            const ticket = String(occupant.TicketNumber || occupant.Ticketnumber || occupant.ticketNum || '').trim();
             const duration = occupant.RecoveryRequired || '15m';
             const remMs = getRemainingRecoveryMs(occupant);
             const remStr = formatCountdown(remMs);
             const isExpiringSoon = remMs > 0 && remMs <= 60000;
+            const isBeingMoved = selectedRecoveryTicket === ticket;
 
-            const cardBg = isExpiringSoon
+            let cardBg = isExpiringSoon
               ? "bg-amber-50 border-amber-400 text-amber-950"
               : "bg-sky-50 border-sky-300 text-sky-950";
+            if (isBeingMoved) {
+              cardBg = "bg-sky-100 border-black text-sky-950 ring-2 ring-sky-500";
+            }
 
             seatsHtml += `
               <div class="${cardBg} border-2 rounded-xl p-3 flex flex-col justify-between shadow-sm min-h-[128px] transition-all">
@@ -1439,9 +1497,14 @@
                   </span>
                 </div>
 
-                <button type="button" onclick="dischargeRecoveryClient('${ticket}', true)" class="w-full py-1.5 bg-white hover:bg-rose-600 text-gray-700 hover:text-white border border-gray-200 hover:border-rose-600 rounded-lg text-[11px] font-bold transition">
-                  Clear Seat
-                </button>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <button type="button" onclick="selectRecoveryClient('${ticket}')" class="py-1.5 ${isBeingMoved ? 'bg-black text-white border-black' : 'bg-white hover:bg-sky-600 text-sky-900 hover:text-white border-gray-200 hover:border-sky-600'} border rounded-lg text-[11px] font-bold transition">
+                    ${isBeingMoved ? 'Moving…' : 'Move'}
+                  </button>
+                  <button type="button" onclick="dischargeRecoveryClient('${ticket}', true)" class="py-1.5 bg-white hover:bg-rose-600 text-gray-700 hover:text-white border border-gray-200 hover:border-rose-600 rounded-lg text-[11px] font-bold transition">
+                    Clear
+                  </button>
+                </div>
               </div>
             `;
           } else if (selectedRecoveryTicket) {
@@ -1449,12 +1512,12 @@
               <button type="button" onclick="assignSeatToClient('${seatId}', '${selectedRecoveryTicket}')" class="bg-amber-50/70 hover:bg-amber-100 border-2 border-dashed border-amber-400 rounded-xl p-3 flex flex-col justify-between min-h-[128px] text-left transition cursor-pointer shadow-sm">
                 <div class="flex items-center justify-between w-full">
                   <span class="text-[10px] font-black uppercase tracking-wider text-amber-900">Seat ${seat}</span>
-                  <span class="text-[10px] font-bold text-amber-700">Tap to Seat</span>
+                  <span class="text-[10px] font-bold text-amber-700">${selectedCurrentSeat ? 'Move Here' : 'Tap to Seat'}</span>
                 </div>
                 
                 <div class="my-2 text-center w-full">
                   <span class="inline-block px-2.5 py-1 bg-black text-white rounded-lg text-xs font-black">
-                    + Seat #${selectedRecoveryTicket}
+                    ${selectedCurrentSeat ? `Move #${selectedRecoveryTicket}` : `+ Seat #${selectedRecoveryTicket}`}
                   </span>
                 </div>
 
@@ -1532,6 +1595,13 @@
         selectedRecoveryTicket = null;
       }
 
+      // Optimistic local UI update for instant feedback when seating or moving
+      const targetRecord = latestQueueData.find(r => r && String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === String(ticketNum).trim());
+      if (targetRecord) {
+        targetRecord.RecoverySeat = seatId;
+        renderRecoveryGrid();
+      }
+
       try {
         await fetch(API_URL, {
           method: 'POST',
@@ -1556,6 +1626,10 @@
       if (isManual) {
         const confirmed = confirm(`Clear seat and discharge Client #${ticketNum} from recovery?`);
         if (!confirmed) return;
+      }
+
+      if (selectedRecoveryTicket === String(ticketNum).trim()) {
+        selectedRecoveryTicket = null;
       }
 
       try {
