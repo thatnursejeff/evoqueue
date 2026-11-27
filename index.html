@@ -1,0 +1,2985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EvoQue - Clinic Queue Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen text-gray-900">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header id="top-nav-header" class="bg-black text-white px-6 py-4 flex flex-col lg:flex-row items-center justify-between border-b border-gray-800 shadow-md gap-4">
+    
+    <!-- LEFT GROUP: LOGO & VERSION -->
+    <div class="flex flex-col items-center gap-0.5">
+      <a href="#register" onclick="switchTab('register')" class="focus:outline-none flex items-center justify-center">
+        <img src="evoqueue_logo.svg" alt="EvoQueue" class="h-[60px] md:h-[66px] w-auto object-contain" />
+      </a>
+      <div class="flex items-center gap-2 mt-0.5">
+        <button type="button" onclick="openChangelog()" style="font-size: 10px;" class="text-gray-400 hover:text-white font-mono leading-none transition focus:outline-none" title="Click to view recent changes">
+          v1.4.1 - Changelog
+        </button>
+        <span class="text-gray-700 text-[10px]">•</span>
+        <span id="sync-status-badge" class="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400">
+          <span id="sync-status-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="sync-status-text">Live</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="flex flex-wrap justify-center gap-1.5 bg-gray-900 p-1 rounded-xl border border-gray-800">
+      <button type="button" onclick="switchTab('register')" id="tab-register" class="px-3.5 py-2 rounded-lg text-sm font-semibold transition bg-white text-black shadow">
+        Register Client
+      </button>
+      <button type="button" onclick="switchTab('nurse')" id="tab-nurse" class="px-3.5 py-2 rounded-lg text-sm font-semibold transition text-gray-400 hover:text-white">
+        Nurse Station
+      </button>
+      <button type="button" onclick="switchTab('recovery')" id="tab-recovery" class="px-3.5 py-2 rounded-lg text-sm font-semibold transition text-gray-400 hover:text-white">
+        Recovery Station
+      </button>
+      <button type="button" onclick="switchTab('display')" id="tab-display" class="px-3.5 py-2 rounded-lg text-sm font-semibold transition text-gray-400 hover:text-white">
+        Public Display
+      </button>
+      <button type="button" onclick="switchTab('admin')" id="tab-admin" class="px-3.5 py-2 rounded-lg text-sm font-semibold transition text-gray-400 hover:text-white">
+        Admin
+      </button>
+    </nav>
+  </header>
+
+
+  <main class="p-4 md:p-8 max-w-7xl mx-auto">
+
+    <!-- ==================== SCREEN 1: REGISTRATION ==================== -->
+    <section id="screen-register" class="block">
+      <div class="max-w-xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+        
+        <!-- HEADER WITH LAST ISSUED NUMBER DISPLAY -->
+        <div class="flex items-start justify-between mb-6 gap-4">
+          <div>
+            <h2 class="text-2xl font-black mb-1">Issue Queue Number</h2>
+            <p class="text-sm text-gray-500">Enter the number handed to client</p>
+          </div>
+          <div class="bg-gray-50 border border-gray-200 px-4 py-3 rounded-2xl text-center min-w-[120px] shadow-sm">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Last Issued</span>
+            <span id="last-issued-num" class="text-2xl font-black text-black">--</span>
+          </div>
+        </div>
+
+        <!-- MISSING SEQUENCE NUMBER ALERT BANNER -->
+        <div id="missing-tickets-banner" class="hidden mb-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl shadow-sm space-y-3">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h3 class="text-xs font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                <span>⚠️ Missing Sequence Number(s)</span>
+              </h3>
+              <p class="text-xs text-amber-800 mt-0.5">
+                A client number may be missing from the queue:
+              </p>
+            </div>
+          </div>
+          <div id="missing-tickets-list" class="space-y-2"></div>
+        </div>
+
+        <div id="alertMsg" class="hidden mb-6 p-4 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 text-sm font-bold">
+          ✓ Number issued and client added to queue successfully!
+        </div>
+
+        <form id="regForm" onsubmit="submitRegistration(event)" class="space-y-5">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label for="ticketNum" class="block text-xs font-bold uppercase tracking-wider text-gray-600">Client Number</label>
+              <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" id="isGroupTicket" onchange="toggleGroupField()" class="w-4 h-4 rounded border-gray-300 text-black focus:ring-black cursor-pointer" />
+                <span class="text-xs font-bold text-gray-700">Assign Group</span>
+              </label>
+            </div>
+            <input type="text" id="ticketNum" required placeholder="e.g. 1, 2, 3, etc." class="w-full px-4 py-3 bg-gray-50 border rounded-xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-black" />
+          </div>
+
+          <!-- GROUP HEADCOUNT SELECTOR (SHOWN WHEN "ASSIGN GROUP" IS CHECKED) -->
+          <div id="groupFieldContainer" class="hidden bg-sky-50 border border-sky-200 p-4 rounded-xl space-y-2">
+            <div class="flex items-center justify-between">
+              <label for="groupSize" class="block text-xs font-black uppercase tracking-wider text-sky-950">
+                👥 Number of People on Ticket
+              </label>
+              <span class="text-[11px] font-semibold text-sky-800">Family / Group Visit</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="groupSize" class="w-full px-3.5 py-2.5 bg-white border border-sky-300 rounded-xl font-black text-base text-sky-950 focus:outline-none focus:ring-2 focus:ring-black">
+                <option value="2" selected>2 people</option>
+                <option value="3">3 people</option>
+                <option value="4">4 people</option>
+                <option value="5">5 people</option>
+                <option value="6">6 people</option>
+                <option value="7">7 people</option>
+                <option value="8">8 people</option>
+                <option value="9">9 people</option>
+                <option value="10">10 people</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-2">Service Required</label>
+            <select id="service" required class="w-full px-4 py-3 bg-gray-50 border rounded-xl font-bold text-base focus:outline-none focus:ring-2 focus:ring-black">
+              <option value="Vaccination">Vaccination</option>
+              <option value="STI screening and care">STI Care</option>
+              <option value="General Consultation">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-2">Appointment Type</label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl border cursor-pointer hover:bg-gray-100">
+                <input type="radio" name="appType" value="Drop-in" checked onchange="toggleTimeField()" class="w-4 h-4 text-black focus:ring-black" />
+                <span class="font-bold text-sm">Drop-in</span>
+              </label>
+              <label class="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl border cursor-pointer hover:bg-gray-100">
+                <input type="radio" name="appType" value="Booked Appointment" onchange="toggleTimeField()" class="w-4 h-4 text-black focus:ring-black" />
+                <span class="font-bold text-sm">Booked Appointment</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="timeFieldContainer" class="hidden">
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-2">Scheduled Appointment Time</label>
+            <input type="time" id="appTime" class="w-full px-4 py-3 bg-gray-50 border rounded-xl font-bold text-base focus:outline-none focus:ring-2 focus:ring-black" />
+          </div>
+
+          <button type="submit" id="submitBtn" class="w-full py-4 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition shadow-lg text-lg mt-4">
+            Add Client to Queue
+          </button>
+        </form>
+
+        <!-- VERIFICATION FEED: RECENT REGISTRATIONS (LAST 10 ENTRIES) -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Recent Registrations (Last 10 Logged)</h3>
+            <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold">Auto-Syncs</span>
+          </div>
+          <div id="recent-regs-list" class="space-y-2 max-h-52 overflow-y-auto pr-1">
+            <p class="text-xs text-gray-400 italic text-center py-3">Loading recent entries...</p>
+          </div>
+        </div>
+
+        <!-- OVERALL CLINIC STATUS -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Overall Clinic Status</h3>
+          <div class="grid grid-cols-4 gap-2.5">
+            <div class="bg-gray-50 border rounded-2xl p-3 text-center">
+              <p class="text-[10px] font-semibold text-gray-500 uppercase">Waiting</p>
+              <p id="count-waiting-reg" class="text-2xl font-black text-black mt-1">0</p>
+            </div>
+            <div class="bg-gray-50 border rounded-2xl p-3 text-center">
+              <p class="text-[10px] font-semibold text-gray-500 uppercase">With Nurse</p>
+              <p id="count-nurse-reg" class="text-2xl font-black text-black mt-1">0</p>
+            </div>
+            <div class="bg-gray-50 border rounded-2xl p-3 text-center">
+              <p class="text-[10px] font-semibold text-gray-500 uppercase">Recovery</p>
+              <p id="count-recovery-reg" class="text-2xl font-black text-black mt-1">0</p>
+            </div>
+            <div class="bg-gray-50 border rounded-2xl p-3 text-center">
+              <p class="text-[10px] font-semibold text-gray-500 uppercase">Completed</p>
+              <p id="count-completed-reg" class="text-2xl font-black text-black mt-1">0</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== SCREEN 2: NURSE STATION ==================== -->
+    <section id="screen-nurse" class="hidden space-y-6">
+      <!-- Control Bar -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-2xl border shadow-sm gap-4">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-400 block mb-1">Station Selection</span>
+          <select id="stationSelect" onchange="saveStationSelection()" class="bg-gray-100 border text-black font-black text-lg px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-black">
+            <option value="Station A">Station A</option>
+            <option value="Station B">Station B</option>
+            <option value="Station C">Station C</option>
+            <option value="Station D">Station D</option>
+            <option value="Station E">Station E</option>
+            <option value="Station F">Station F</option>
+            <option value="Station G">Station G</option>
+          </select>
+        </div>
+
+        <!-- Counts -->
+        <div class="flex flex-wrap items-center gap-2 text-sm font-bold">
+          <div class="bg-amber-50 text-amber-900 border border-amber-200 px-3.5 py-2 rounded-xl">
+            Waiting: <span id="count-waiting">0</span>
+          </div>
+          <div class="bg-blue-50 text-blue-900 border border-blue-200 px-3.5 py-2 rounded-xl">
+            With Nurse: <span id="count-nurse">0</span>
+          </div>
+          <div class="bg-purple-50 text-purple-900 border border-purple-200 px-3.5 py-2 rounded-xl">
+            In Recovery: <span id="count-recovery">0</span>
+          </div>
+          <div class="bg-emerald-50 text-emerald-900 border border-emerald-200 px-3.5 py-2 rounded-xl">
+            Completed: <span id="count-completed">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- READ-ONLY ACTIVE CLINIC SETUP BAR (CANIMMS LOCATION & VACCINE LOT #S) -->
+      <div id="nurse-clinic-setup-bar" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 shrink-0">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">CanImms Location</span>
+          <span id="nurse-canimms-location" class="px-3 py-1 bg-black text-white font-mono text-xs font-black rounded-lg">
+            WZ-01
+          </span>
+        </div>
+        <div id="nurse-active-lots-list" class="flex flex-wrap items-center gap-1.5">
+          <span class="text-xs text-gray-400 italic">No vaccine lot numbers entered by Clinic Lead yet.</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Currently Serving Card -->
+        <div class="md:col-span-1">
+          <div id="active-client-box" class="bg-black text-white p-6 rounded-2xl shadow-xl hidden">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-400 block mb-1" id="active-station-label">Currently Serving</span>
+            <div class="flex items-center gap-3 mb-4">
+              <div class="text-6xl font-black tracking-tight" id="active-ticket-num">--</div>
+              <span id="active-group-badge" class="hidden px-3 py-1.5 bg-sky-400 text-black text-xs font-black rounded-xl uppercase">
+                👥 Group of 2
+              </span>
+            </div>
+
+            <div class="space-y-2 mb-5 border-t border-gray-800 pt-4">
+              <div>
+                <span class="text-xs text-gray-500 uppercase font-bold block">Service</span>
+                <span class="font-bold text-lg text-white" id="active-service">--</span>
+              </div>
+              <div>
+                <span class="text-xs text-gray-500 uppercase font-bold block">Booking Details</span>
+                <span class="font-semibold text-sm text-gray-300" id="active-appt-info">--</span>
+              </div>
+            </div>
+
+            <!-- VACCINATION RECOVERY TIME SELECTOR (SHOWN ONLY FOR VACCINATIONS WHEN NOT EXCLUDED) -->
+            <div id="recovery-selector-box" class="mb-4 bg-gray-900 p-3.5 rounded-xl border border-gray-800 hidden">
+              <label for="recoveryTimeSelect" class="block text-[11px] font-bold uppercase tracking-wider text-sky-400 mb-1.5">
+                ⏱ Recovery Time Required
+              </label>
+              <select id="recoveryTimeSelect" class="w-full bg-gray-800 text-white font-bold text-sm px-3 py-2.5 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                <option value="15m" selected>15m (Standard)</option>
+                <option value="30m">30m</option>
+                <option value="45m">45m</option>
+                <option value="Declined">Declined</option>
+              </select>
+            </div>
+
+            <!-- CLINICAL OUTCOME & DOCUMENTATION FLAGS -->
+            <div class="mb-5 space-y-2.5 bg-gray-900/80 p-3.5 rounded-xl border border-gray-800">
+              <!-- Could Not Vaccinate (Shown only for Vaccination visits) -->
+              <div id="novax-control-group" class="hidden space-y-2">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input type="checkbox" id="noVaxCheck" onchange="toggleNoVaxReason()" class="w-4 h-4 rounded border-gray-600 text-amber-400 focus:ring-amber-400 cursor-pointer" />
+                  <span class="text-xs font-bold text-amber-300">Could not vaccinate</span>
+                </label>
+
+                <div id="novax-reason-box" class="hidden pl-6">
+                  <label for="noVaxReasonSelect" class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
+                    Reason
+                  </label>
+                  <select id="noVaxReasonSelect" class="w-full bg-gray-800 text-white font-bold text-xs px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <option value="Not eligible">Not eligible</option>
+                    <option value="Patient declined">Patient declined</option>
+                    <option value="Contraindicated">Contraindicated</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Pano Notes (Available for all visits) -->
+              <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" id="panoNotesCheck" class="w-4 h-4 rounded border-gray-600 text-sky-400 focus:ring-sky-400 cursor-pointer" />
+                <span class="text-xs font-bold text-gray-200">Pano Notes</span>
+              </label>
+            </div>
+
+            <!-- MAIN OPERATIONAL BUTTONS -->
+            <div class="space-y-3">
+              <button onclick="recallCurrentPatient()" class="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl text-sm transition border border-gray-700">
+                🔊 Call Patient Again
+              </button>
+              <button onclick="completeCurrentPatient()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition">
+                ✓ Complete & Release Client
+              </button>
+            </div>
+
+            <!-- DISTAL MIS-CLICK CORRECTION AREA -->
+            <div class="border-t border-gray-900 pt-4 mt-6">
+              <button onclick="returnPatientToQueue()" class="w-full py-2 px-3 bg-gray-900 hover:bg-amber-950 text-amber-400 border border-amber-900/50 font-semibold rounded-lg text-xs transition flex items-center justify-center space-x-1.5 opacity-80 hover:opacity-100">
+                <span>↩</span>
+                <span>Return Client to Queue</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Waiting Queue List -->
+        <div class="md:col-span-2">
+          <div class="bg-white p-6 rounded-2xl border shadow-sm">
+            <h3 class="text-lg font-black mb-4">Waiting Queue</h3>
+            <div id="queue-list" class="space-y-3">
+              <p class="text-sm text-gray-400 italic">No clients currently waiting.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== SCREEN 3: RECOVERY STATION (HSA INTERFACE) ==================== -->
+    <section id="screen-recovery" class="hidden space-y-6">
+      <!-- Top Summary & Layout Configuration Bar -->
+      <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-black text-black">Recovery Station Monitor</h2>
+          <p class="text-xs text-gray-500">Tap a waiting client pill (or Move on an occupied chair), then tap vacant chair(s) to seat.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Flexible Grid Layout Configuration Inputs -->
+          <div class="flex items-center space-x-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
+            <label for="recoveryRowsConfig" class="text-[10px] font-bold uppercase text-gray-500">Rows:</label>
+            <input type="number" id="recoveryRowsConfig" min="1" max="50" value="6" onchange="saveRecoveryLayoutConfig()" class="w-12 bg-white border border-gray-200 rounded-md px-1.5 py-0.5 text-center font-black text-xs focus:outline-none focus:ring-2 focus:ring-black" />
+          </div>
+
+          <div class="flex items-center space-x-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
+            <label for="recoverySeatsConfig" class="text-[10px] font-bold uppercase text-gray-500">Seats/Row:</label>
+            <input type="number" id="recoverySeatsConfig" min="1" max="100" value="12" onchange="saveRecoveryLayoutConfig()" class="w-14 bg-white border border-gray-200 rounded-md px-1.5 py-0.5 text-center font-black text-xs focus:outline-none focus:ring-2 focus:ring-black" />
+          </div>
+
+          <!-- Unassigned Recovery Queue Badge -->
+          <div class="bg-amber-50 border border-amber-200 px-3.5 py-1.5 rounded-xl flex items-center space-x-2">
+            <span class="text-[10px] font-bold uppercase text-amber-800">Awaiting:</span>
+            <span id="recovery-unassigned-count" class="text-base font-black text-amber-900">0</span>
+          </div>
+
+          <!-- Occupied Seats Badge -->
+          <div class="bg-sky-50 border border-sky-200 px-3.5 py-1.5 rounded-xl flex items-center space-x-2">
+            <span class="text-[10px] font-bold uppercase text-sky-800">Seated:</span>
+            <span id="recovery-seated-count" class="text-base font-black text-sky-900">0 / 72</span>
+          </div>
+
+          <!-- Row Filter -->
+          <select id="recoveryRowFilter" onchange="renderRecoveryGrid()" class="bg-gray-100 border text-black font-bold text-xs px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-black">
+            <option value="ALL">All Rows</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Active Seat-Move Banner (Shown when moving an already-seated client) -->
+      <div id="moving-client-banner" class="hidden bg-sky-950 text-white border border-sky-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md">
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 bg-sky-400 text-black text-xs font-black rounded-lg uppercase">Moving</span>
+          <span id="moving-client-label" class="text-sm font-bold">Client #-- — tap any vacant chair to relocate</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="unseatMovingClient()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black rounded-lg transition">
+            Return to Awaiting
+          </button>
+          <button type="button" onclick="cancelRecoverySelection()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold rounded-lg transition">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Unassigned Clients Quick-Banner (Tap-to-Select) -->
+      <div id="unassigned-recovery-banner" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-black uppercase tracking-wider text-amber-900 mr-1">Clients Ready for Seating:</span>
+          <div id="unassigned-recovery-pills" class="flex flex-wrap gap-2"></div>
+        </div>
+        <span id="tap-to-seat-hint" class="text-[11px] font-semibold text-amber-800">
+          Tap a client pill, then tap vacant chair(s)
+        </span>
+      </div>
+
+      <!-- Dynamic Rows x Seats Grid Container -->
+      <div id="recovery-rows-container" class="space-y-6">
+        <!-- Dynamically populated via JS -->
+      </div>
+    </section>
+
+    <!-- ==================== SCREEN 4: PUBLIC DISPLAY (FULL-SCREEN OPTIMIZED) ==================== -->
+    <section id="screen-display" class="hidden">
+      <div class="w-full max-w-7xl mx-auto flex flex-col justify-between min-h-[calc(100vh-4rem)] py-4 gap-6">
+        
+        <!-- NOW SERVING MAIN SECTION -->
+        <div class="flex flex-col flex-grow justify-center">
+          <span class="text-base md:text-xl font-black uppercase tracking-[0.25em] text-gray-400 block text-center mb-3">NOW SERVING</span>
+          
+          <div id="display-primary" class="bg-black text-white p-8 md:p-14 rounded-3xl shadow-2xl flex flex-col lg:flex-row items-center justify-around min-h-[380px] border border-gray-800 gap-8">
+            <div class="flex flex-col items-center">
+              <span class="text-sm md:text-base font-bold text-gray-400 uppercase tracking-widest mb-2">TICKET NUMBER</span>
+              <span class="text-9xl lg:text-[12rem] font-black tracking-tight leading-none text-white">--</span>
+            </div>
+            <div class="w-full lg:w-auto flex flex-col items-center justify-center">
+              <span class="text-sm md:text-base font-bold text-gray-400 uppercase tracking-widest mb-3">PROCEED TO</span>
+              <span class="px-10 py-6 bg-sky-400 text-black text-5xl lg:text-7xl font-black rounded-3xl tracking-wide shadow-2xl uppercase block text-center min-w-[300px]">
+                --
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECENT CALLS BOTTOM SECTION (MAXIMIZED CARDS) -->
+        <div class="w-full">
+          <span class="text-xs md:text-sm font-black uppercase tracking-[0.2em] text-gray-400 block text-center mb-3">RECENT CALLS</span>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div id="display-secondary-1" class="bg-white p-8 rounded-3xl border border-gray-200 shadow-md flex items-center justify-between min-h-[140px] px-10">
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET</p>
+                <span class="text-5xl md:text-6xl font-black text-gray-800">--</span>
+              </div>
+              <span class="px-8 py-4 bg-gray-100 text-gray-800 text-2xl md:text-3xl font-black rounded-2xl uppercase">--</span>
+            </div>
+            
+            <div id="display-secondary-2" class="bg-white p-8 rounded-3xl border border-gray-200 shadow-md flex items-center justify-between min-h-[140px] px-10">
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET</p>
+                <span class="text-5xl md:text-6xl font-black text-gray-800">--</span>
+              </div>
+              <span class="px-8 py-4 bg-gray-100 text-gray-800 text-2xl md:text-3xl font-black rounded-2xl uppercase">--</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== SCREEN 5: CLINIC LEAD INTERFACE ==================== -->
+    <section id="screen-admin" class="hidden space-y-8">
+      <div class="flex items-center justify-between border-b pb-4">
+        <div>
+          <h2 class="text-3xl font-black text-black">Clinic Lead Interface</h2>
+          <p class="text-sm text-gray-500">Administrative Console.</p>
+        </div>
+        <span class="px-3 py-1 bg-black text-white text-xs font-bold rounded-full">Protected Access</span>
+      </div>
+
+      <!-- 0. CLINIC SETUP (CANIMMS LOCATION & VACCINE LOT NUMBERS) -->
+      <div class="bg-white p-6 rounded-2xl border shadow-sm space-y-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+          <div>
+            <h3 class="text-lg font-black text-black">Clinic Setup</h3>
+            <p class="text-xs text-gray-500">Configure CanImms Location and active vaccine lot numbers for today's shift.</p>
+          </div>
+
+          <!-- CanImms Location Dropdowns -->
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">CanImms Location:</span>
+            <div class="flex items-center space-x-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
+              <label for="setupZoneSelect" class="text-[10px] font-bold uppercase text-gray-500">Zone:</label>
+              <select id="setupZoneSelect" onchange="saveCanImmsLocationOnly()" class="bg-transparent font-black text-sm focus:outline-none cursor-pointer">
+                <option value="WZ">WZ</option>
+                <option value="CZ">CZ</option>
+                <option value="NZ">NZ</option>
+                <option value="EZ">EZ</option>
+              </select>
+            </div>
+            <div class="flex items-center space-x-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
+              <label for="setupNumberSelect" class="text-[10px] font-bold uppercase text-gray-500">Number:</label>
+              <select id="setupNumberSelect" onchange="saveCanImmsLocationOnly()" class="bg-transparent font-black text-sm focus:outline-none cursor-pointer">
+                <option value="01">01</option>
+                <option value="02">02</option>
+                <option value="03">03</option>
+                <option value="04">04</option>
+                <option value="05">05</option>
+                <option value="06">06</option>
+                <option value="07">07</option>
+                <option value="08">08</option>
+                <option value="09">09</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toggle Checkbox to Open Vaccine Lot Table -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <label class="inline-flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" id="toggleLotsEditorCheck" onchange="toggleLotsEditor()" class="w-4 h-4 rounded border-gray-300 text-black focus:ring-black cursor-pointer" />
+            <span class="text-sm font-black text-gray-800">Enter products and Lot #s</span>
+          </label>
+          <span id="setupSaveStatus" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+            ✓ Clinic setup saved
+          </span>
+        </div>
+
+        <!-- EXPANDABLE VACCINE LOT ENTRY TABLE -->
+        <div id="lots-editor-container" class="hidden space-y-4 pt-2">
+          <div class="overflow-x-auto border border-gray-200 rounded-xl">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-gray-50 border-b text-xs font-bold text-gray-500 uppercase">
+                <tr>
+                  <th class="py-2.5 px-4">Vaccine Product</th>
+                  <th class="py-2.5 px-4">Lot Number (Leave blank if not offered today)</th>
+                </tr>
+              </thead>
+              <tbody id="vaccine-lots-table-body" class="divide-y">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="cancelLotsEditor()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition">
+              Cancel
+            </button>
+            <button type="button" id="saveClinicSetupBtn" onclick="saveClinicSetup()" class="px-5 py-2.5 bg-black hover:bg-gray-800 text-white font-bold rounded-xl text-xs transition shadow-md">
+              Save Products & Lot #s
+            </button>
+          </div>
+        </div>
+
+        <!-- SAVED ACTIVE PRODUCTS & LOT NUMBERS DISPLAY BOX -->
+        <div id="admin-active-lots-box" class="bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-black uppercase tracking-wider text-gray-700">Active Products & Lot #s</span>
+              <span id="admin-canimms-badge" class="px-2.5 py-0.5 bg-black text-white font-mono text-[11px] font-black rounded-md">
+                WZ-01
+              </span>
+            </div>
+            <button type="button" onclick="openLotsEditor()" class="px-3 py-1 bg-white hover:bg-gray-100 text-black border border-gray-300 rounded-lg text-xs font-bold transition shadow-sm">
+              ✏️ Edit / Update
+            </button>
+          </div>
+          <div id="admin-active-lots-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+            <p class="text-xs text-gray-400 italic col-span-full">No vaccine lot numbers saved yet. Check "Enter products and Lot #s" above to configure.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. PATIENT DISPOSITION & TIMING -->
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-2xl border shadow-sm text-center">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Waiting</span>
+          <span id="admin-count-waiting" class="text-4xl font-black text-amber-600">0</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border shadow-sm text-center">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">With Nurse</span>
+          <span id="admin-count-nurse" class="text-4xl font-black text-blue-600">0</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border shadow-sm text-center">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">In Recovery</span>
+          <span id="admin-count-recovery" class="text-4xl font-black text-purple-600">0</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border shadow-sm text-center">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Completed Clients</span>
+          <span id="admin-count-completed" class="text-4xl font-black text-emerald-600">0</span>
+          <span id="admin-completed-tickets-sub" class="text-[11px] font-semibold text-gray-400 block mt-0.5">0 tickets</span>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border shadow-sm text-center">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Avg Wait / Consult Time</span>
+          <div class="text-base font-black text-gray-800 mt-1">
+            Wait: <span id="admin-avg-wait" class="text-black">0m</span> | Consult: <span id="admin-avg-consult" class="text-black">0m</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. CLINIC-WIDE SUMMARIES -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Service Breakdown -->
+        <div class="bg-white p-6 rounded-2xl border shadow-sm">
+          <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Service Breakdown (Clients)</h3>
+          <div id="admin-service-summary" class="space-y-3 font-semibold text-sm">
+            <p class="text-gray-400 italic">No data available.</p>
+          </div>
+        </div>
+
+        <!-- Hourly Patient Arrivals -->
+        <div class="bg-white p-6 rounded-2xl border shadow-sm col-span-2">
+          <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Patient Arrivals per Hour (Clients)</h3>
+          <div id="admin-hourly-summary" class="grid grid-cols-4 md:grid-cols-6 gap-2 text-center text-xs font-bold">
+            <p class="text-gray-400 italic col-span-full">No data available.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. CLINICAL OUTCOMES & DOCUMENTATION (NOVAX + PANO NOTES) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Could Not Vaccinate Summary -->
+        <div class="bg-white p-6 rounded-2xl border shadow-sm col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Could Not Vaccinate Breakdown</h3>
+            <span class="px-3 py-1 bg-amber-100 text-amber-900 rounded-full text-xs font-black">
+              Total: <span id="admin-novax-total">0</span>
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-gray-50 p-4 rounded-xl border text-center">
+              <span class="text-xs font-bold text-gray-500 block mb-1">Not eligible</span>
+              <span id="admin-novax-ineligible" class="text-2xl font-black text-black">0</span>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl border text-center">
+              <span class="text-xs font-bold text-gray-500 block mb-1">Patient declined</span>
+              <span id="admin-novax-declined" class="text-2xl font-black text-black">0</span>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl border text-center">
+              <span class="text-xs font-bold text-gray-500 block mb-1">Contraindicated</span>
+              <span id="admin-novax-contraindicated" class="text-2xl font-black text-black">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pano Notes Summary -->
+        <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Pano Notes Logged</h3>
+            <p class="text-xs text-gray-500">Visits flagged for Panorama documentation</p>
+          </div>
+          <div class="my-4 bg-sky-50 border border-sky-200 rounded-2xl p-4 text-center">
+            <span id="admin-pano-total" class="text-4xl font-black text-sky-950">0</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-sky-800 block mt-1">Total Pano Notes</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. STATION BREAKDOWN TABLE -->
+      <div class="bg-white p-6 rounded-2xl border shadow-sm">
+        <h3 class="text-lg font-black mb-4">Nurse Station Performance</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b text-xs font-bold text-gray-400 uppercase">
+                <th class="pb-3">Station</th>
+                <th class="pb-3">Total Clients</th>
+                <th class="pb-3">Clients / Hour</th>
+                <th class="pb-3">Services Handled</th>
+                <th class="pb-3">Avg Consult Time</th>
+              </tr>
+            </thead>
+            <tbody id="admin-station-table" class="divide-y font-medium">
+              <tr><td colspan="5" class="py-4 text-center text-gray-400 italic">No station activity recorded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5. END-OF-DAY CLINIC CONTROLS -->
+      <div class="bg-gray-900 text-white p-6 rounded-2xl border border-gray-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <h3 class="text-lg font-bold">Clinic Management Controls</h3>
+          <p class="text-xs text-gray-400">Archive clinic logs or reset queue rows at the end of the operational day.</p>
+        </div>
+        <div class="flex items-center space-x-3 w-full md:w-auto">
+          <button onclick="closeAndArchiveClinic()" class="flex-1 md:flex-initial px-5 py-3 bg-blue-600 hover:bg-blue-500 font-bold rounded-xl text-sm transition shadow-md">
+            📁 Close Clinic & Archive Data
+          </button>
+          <button onclick="resetQueueSheet()" class="flex-1 md:flex-initial px-5 py-3 bg-rose-600 hover:bg-rose-500 font-bold rounded-xl text-sm transition shadow-md">
+            ⚠️ Reset Clinic Queue
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- GLOBAL FOOTER (AUTO-HIDDEN ON PUBLIC DISPLAY) -->
+  <footer id="app-footer" class="py-6 text-center text-gray-400" style="font-size: 11px;">
+    &copy; 2026 <a href="https://thatnursejeff.github.io/leastresistancelabs/" target="_blank" rel="noopener noreferrer" class="font-semibold text-gray-500 hover:text-black underline decoration-gray-300 underline-offset-2 transition">Least Resistance Labs</a>. All rights reserved.
+  </footer>
+
+
+  <!-- STAFF SHIFT PIN ENTRY MODAL -->
+  <div id="staffPinModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white text-gray-900 rounded-3xl max-w-sm w-full p-8 shadow-2xl border border-gray-200 text-center space-y-6">
+      <div>
+        <div class="w-12 h-12 bg-black text-white rounded-2xl mx-auto flex items-center justify-center text-xl mb-3 shadow-md">🔒</div>
+        <h3 class="text-xl font-black tracking-tight">Terminal Authorization</h3>
+        <p class="text-xs text-gray-500 mt-1">Enter clinic staff PIN to initialize this terminal for the shift.</p>
+      </div>
+      
+      <form onsubmit="verifyStaffPin(event)" class="space-y-4">
+        <input type="password" id="staffPinInput" required maxlength="6" placeholder="Enter PIN" class="w-full px-4 py-3 bg-gray-50 border rounded-xl text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-black" />
+        <button type="submit" class="w-full py-3.5 bg-black hover:bg-gray-800 text-white font-bold rounded-xl transition shadow-lg text-sm">
+          Authorize Terminal
+        </button>
+      </form>
+      <p class="text-[10px] text-gray-400">Authorized personnel only.</p>
+    </div>
+  </div>
+
+  <!-- VERSION HISTORY MODAL -->
+  <div id="changelogModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white text-gray-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="text-lg font-black tracking-tight">Version Details & Release Notes</h3>
+        <button onclick="closeChangelog()" class="text-gray-400 hover:text-black font-bold text-xl px-2">&times;</button>
+      </div>
+      
+      <div class="space-y-4 text-sm max-h-72 overflow-y-auto pr-1">
+
+        <!-- VERSION 1.4.1 -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-black text-black text-sm">Version 1.4.1</span>
+            <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Current</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-600 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-black font-bold">•</span>
+              <span>Fixed API payload compatibility so queue records and CanImms Location / vaccine lot numbers load immediately across all screens.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.4.0 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.4.0</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added Clinic Setup section on the Admin screen with CanImms Location (Zone WZ/CZ/NZ/EZ and Number 01–09) and an expandable vaccine product & lot number table.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Active products with lot numbers entered now display in a summary box on Admin (with Edit/Update) and as a read-only reference bar on the Nurse Station screen.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.9 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.9</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added "Could not vaccinate" (Not eligible, Patient declined, Contraindicated) and "Pano Notes" checkboxes to Nurse Station patient cards, logging NoVax, Reason, and Pano columns and displaying totals on the Admin screen.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.8 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.8</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added multi-seat group assignment on the Recovery screen so staff can assign and track multiple chairs under a single group ticket number.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.7 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.7</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added "Assign Group" checkbox on Registration to record multi-person family/group visits on a single ticket, displaying group badges on Nurse and Recovery screens and counting total humans served in Admin metrics.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.6 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.6</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added 5-minute neighbor-anchored sequence gap detector on the Registration screen with one-click pre-fill or skip/dismiss controls to compensate for missing queue entries due to network issues or human error.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.5 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.5</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Fixed Public Display audio repeat bug: when a client finishes with their nurse and a previously called client moves up into the primary NOW SERVING box, the display updates visually without re-chiming or re-announcing them.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.4 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.4</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added seat-to-seat client relocation on the Recovery screen: tap "Move" on any occupied chair and tap any vacant chair to transfer while keeping their active countdown timer intact. *Feedback from team ❤️ </span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.3 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.3</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added one-tap Recovery seating: tap a client pill in the ready banner, then tap any vacant chair to assign immediately.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Replaced fixed Recovery grid dropdowns with flexible numeric inputs supporting any number of rows and seats per row.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.2 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.2</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Solved the speech synthesis bug—Station E is now properly pronounced as "Station E" instead of "Station East". Station E has been officially reinstated.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Fixed "Call Patient Again" recall audio and Public Display ordering using LastCalledTime instead of initial registration Timestamp.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Prevented duplicate recovery auto-discharge calls across multiple open terminals and added a live connection status badge.</span>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- VERSION 1.3.1 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.1</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added dynamic Recovery grid layout configuration (selectable rows and seats per row) persisted locally.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Fixed dropdown interruption bug: background polling now safely defers re-rendering when a staff member has a seat dropdown open.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.3.0 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.3.0</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added Recovery Time selector (15m, 30m, 45m, Declined) on Nurse Station cards for Vaccination visits.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added Recovery Station screen with live countdown timers from nurse release, early exit clearing, and automatic timeout discharge.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.2.0 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.2.0</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added Return to Queue functionality at Nurse Stations with confirmation popup to avoid returning client to queue by accident.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added terminal authorization pin to prevent unauthorized access.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Updated service type descriptions on registration screen.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Added EvoQueue branding and clickable version release notes popup viewer.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Changed active call colouring on public display screen to avoid staff outing themselves when pointing out visual similarities to a popular adult site that Sonja has never visited.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Increased station font and overall scale of public display screen for increased visibility *feedback from team ❤️</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Optimized responsive layout and multi-device scalability.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Gave up on solving the speech synthesis bug resulting in Station E being called out as Station "East". Station E will henceforth be known as "Station STFU".</span>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- VERSION 1.1.0 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.1.0</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Adjusted appointment timing logic and added overdue indicators for booked appointments.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
+              <span>Introduced real-time "last 10" scrollable registration verification feed at bottom of registration screen.</span>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="pt-3 border-t text-right">
+        <button onclick="closeChangelog()" class="px-4 py-2 bg-black hover:bg-gray-800 text-white font-bold rounded-xl text-xs transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyg0stdr4Ce5Ehw5s0P-pA_lpvtOHQ1O3ziQesJj4YKjgdeKxVk0UsXb5sHWnCPlN4k/exec".trim(); 
+
+    const VACCINE_PRODUCTS = [
+      "Moderna",
+      "FluAd",
+      "Fluviral",
+      "Shingles",
+      "mResvia",
+      "Arexvy",
+      "Prevnar",
+      "Tdap",
+      "TD",
+      "Tdap-IPV",
+      "MMR",
+      "MMRV",
+      "Varicella",
+      "MenB",
+      "HPV",
+      "HA",
+      "HB",
+      "Twinrix"
+    ];
+
+    let clinicSetupState = {
+      zone: "WZ",
+      locationNumber: "01",
+      lots: {}
+    };
+
+    let activePatient = null;
+    let activePatientTicket = null;
+    let announcedCallIds = new Set(); // Tracks every call/recall ID already announced so bumped cards stay silent
+    let hasInitializedDisplayCalls = false; // Prevents re-announcing existing calls when opening/refreshing display
+    let isAdminAuthenticated = false;
+    let latestQueueData = [];
+    let autoDischargedTickets = new Set(); // Prevents duplicate auto-discharge calls
+    let selectedRecoveryTicket = null; // Holds ticket selected via tap-to-seat pill or Move button
+
+    const ADMIN_PIN = "9999"; // Default PIN for Clinic Lead Interface
+    const STAFF_PIN = "5050"; // Default PIN for Staff Session Access
+    const GAP_GRACE_PERIOD_MS = 5 * 60 * 1000; // 5-minute buffer before flagging a missing number
+
+    // ==================== CLINIC SETUP (CANIMMS & VACCINE LOTS) ====================
+
+    function buildVaccineLotsTable() {
+      const tbody = document.getElementById('vaccine-lots-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = VACCINE_PRODUCTS.map(product => {
+        const safeId = `lot-input-${product.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const existingVal = clinicSetupState.lots[product] || '';
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 px-4 font-bold text-gray-800">${product}</td>
+            <td class="py-1.5 px-4">
+              <input
+                type="text"
+                id="${safeId}"
+                data-vaccine-product="${product}"
+                value="${existingVal.replace(/"/g, '&quot;')}"
+                placeholder="Enter lot #..."
+                class="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-black"
+              />
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function toggleLotsEditor() {
+      const checkbox = document.getElementById('toggleLotsEditorCheck');
+      const editor = document.getElementById('lots-editor-container');
+      if (!checkbox || !editor) return;
+
+      if (checkbox.checked) {
+        buildVaccineLotsTable();
+        editor.classList.remove('hidden');
+      } else {
+        editor.classList.add('hidden');
+      }
+    }
+
+    function openLotsEditor() {
+      const checkbox = document.getElementById('toggleLotsEditorCheck');
+      if (checkbox) {
+        checkbox.checked = true;
+        toggleLotsEditor();
+        document.getElementById('lots-editor-container')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function cancelLotsEditor() {
+      const checkbox = document.getElementById('toggleLotsEditorCheck');
+      if (checkbox) {
+        checkbox.checked = false;
+        toggleLotsEditor();
+      }
+    }
+
+    function renderClinicSetupDisplays() {
+      const zone = clinicSetupState.zone || 'WZ';
+      const num = clinicSetupState.locationNumber || '01';
+      const fullLoc = `${zone}-${num}`;
+      const lots = clinicSetupState.lots || {};
+
+      // Sync Admin dropdowns only when not actively focused
+      const zoneEl = document.getElementById('setupZoneSelect');
+      const numEl = document.getElementById('setupNumberSelect');
+      if (zoneEl && document.activeElement !== zoneEl) zoneEl.value = zone;
+      if (numEl && document.activeElement !== numEl) numEl.value = num;
+
+      setSafeText('admin-canimms-badge', fullLoc);
+      setSafeText('nurse-canimms-location', fullLoc);
+
+      const activeEntries = VACCINE_PRODUCTS
+        .filter(prod => String(lots[prod] || '').trim() !== '')
+        .map(prod => ({ product: prod, lot: String(lots[prod]).trim() }));
+
+      // Render Admin Active Lots Grid
+      const adminGrid = document.getElementById('admin-active-lots-grid');
+      if (adminGrid) {
+        if (activeEntries.length === 0) {
+          adminGrid.innerHTML = '<p class="text-xs text-gray-400 italic col-span-full">No vaccine lot numbers saved yet. Check "Enter products and Lot #s" above to configure.</p>';
+        } else {
+          adminGrid.innerHTML = activeEntries.map(item => `
+            <div class="bg-white border border-gray-200 rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-xs">
+              <span class="text-xs font-black text-gray-900">${item.product}</span>
+              <span class="px-2 py-0.5 bg-sky-50 border border-sky-200 text-sky-950 font-mono text-[11px] font-bold rounded">${item.lot}</span>
+            </div>
+          `).join('');
+        }
+      }
+
+      // Render Nurse Station Read-Only Active Lots Bar
+      const nurseList = document.getElementById('nurse-active-lots-list');
+      if (nurseList) {
+        if (activeEntries.length === 0) {
+          nurseList.innerHTML = '<span class="text-xs text-gray-400 italic">No vaccine lot numbers entered by Clinic Lead yet.</span>';
+        } else {
+          nurseList.innerHTML = activeEntries.map(item => `
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+              <span class="font-black text-gray-900">${item.product}:</span>
+              <span class="font-mono font-bold text-sky-900">${item.lot}</span>
+            </span>
+          `).join('');
+        }
+      }
+    }
+
+    async function saveCanImmsLocationOnly() {
+      const zone = document.getElementById('setupZoneSelect')?.value || 'WZ';
+      const locationNumber = document.getElementById('setupNumberSelect')?.value || '01';
+      clinicSetupState.zone = zone;
+      clinicSetupState.locationNumber = locationNumber;
+      renderClinicSetupDisplays();
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'save_setup',
+            zone: zone,
+            canimmsZone: zone,
+            locationNumber: locationNumber,
+            canimmsNumber: locationNumber,
+            lots: clinicSetupState.lots || {}
+          })
+        });
+        flashSetupSavedStatus();
+      } catch (err) {
+        console.error("Location save error:", err);
+      }
+      setTimeout(fetchQueue, 400);
+    }
+
+    async function saveClinicSetup() {
+      const btn = document.getElementById('saveClinicSetupBtn');
+      if (btn) {
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+      }
+
+      const zone = document.getElementById('setupZoneSelect')?.value || 'WZ';
+      const locationNumber = document.getElementById('setupNumberSelect')?.value || '01';
+      const updatedLots = {};
+
+      VACCINE_PRODUCTS.forEach(product => {
+        const safeId = `lot-input-${product.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const val = String(document.getElementById(safeId)?.value || '').trim();
+        if (val) {
+          updatedLots[product] = val;
+        }
+      });
+
+      clinicSetupState = {
+        zone: zone,
+        locationNumber: locationNumber,
+        lots: updatedLots
+      };
+      renderClinicSetupDisplays();
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'save_setup',
+            zone: zone,
+            canimmsZone: zone,
+            locationNumber: locationNumber,
+            canimmsNumber: locationNumber,
+            lots: updatedLots
+          })
+        });
+      } catch (err) {
+        console.error("Clinic setup save error:", err);
+      }
+
+      if (btn) {
+        btn.innerText = "Save Products & Lot #s";
+        btn.disabled = false;
+      }
+
+      // Collapse the editor box after saving
+      const checkbox = document.getElementById('toggleLotsEditorCheck');
+      const editor = document.getElementById('lots-editor-container');
+      if (checkbox) checkbox.checked = false;
+      if (editor) editor.classList.add('hidden');
+
+      flashSetupSavedStatus();
+      setTimeout(fetchQueue, 500);
+    }
+
+    function flashSetupSavedStatus() {
+      const badge = document.getElementById('setupSaveStatus');
+      if (badge) {
+        badge.classList.remove('hidden');
+        setTimeout(() => badge.classList.add('hidden'), 3000);
+      }
+    }
+
+    function getRecordGroupSize(record) {
+      if (!record) return 1;
+      const key = Object.keys(record).find(k => k.trim().toLowerCase() === 'groupsize');
+      const raw = key ? record[key] : 1;
+      const parsed = parseInt(raw, 10);
+      return (!isNaN(parsed) && parsed >= 1) ? parsed : 1;
+    }
+
+    function getRecordFlag(record, colName) {
+      if (!record) return 0;
+      const key = Object.keys(record).find(k => k.trim().toLowerCase() === colName.toLowerCase());
+      const raw = key ? record[key] : 0;
+      const parsed = parseInt(raw, 10);
+      return (!isNaN(parsed) && parsed === 1) ? 1 : 0;
+    }
+
+    function getRecordField(record, colName) {
+      if (!record) return '';
+      const key = Object.keys(record).find(k => k.trim().toLowerCase() === colName.toLowerCase());
+      return key ? String(record[key] || '').trim() : '';
+    }
+
+    function updateSyncStatus(isOnline) {
+      const badge = document.getElementById('sync-status-badge');
+      const dot = document.getElementById('sync-status-dot');
+      const text = document.getElementById('sync-status-text');
+      if (!badge || !dot || !text) return;
+
+      if (isOnline) {
+        badge.className = "inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
+        text.innerText = "Live";
+      } else {
+        badge.className = "inline-flex items-center gap-1 text-[10px] font-mono text-rose-400";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
+        text.innerText = "Offline";
+      }
+    }
+
+    // ==================== MISSING SEQUENCE GAP DETECTOR ====================
+
+    function getDismissedMissingTickets() {
+      try {
+        const raw = localStorage.getItem('evo_dismissed_missing_tickets');
+        return new Set(raw ? JSON.parse(raw) : []);
+      } catch (e) {
+        return new Set();
+      }
+    }
+
+    function dismissMissingTicket(ticketNum) {
+      const dismissed = getDismissedMissingTickets();
+      dismissed.add(Number(ticketNum));
+      localStorage.setItem('evo_dismissed_missing_tickets', JSON.stringify([...dismissed]));
+      checkMissingSequenceNumbers(latestQueueData);
+    }
+
+    function prefillMissingTicket(ticketNum) {
+      const input = document.getElementById('ticketNum');
+      if (input) {
+        input.value = String(ticketNum);
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function checkMissingSequenceNumbers(data) {
+      const banner = document.getElementById('missing-tickets-banner');
+      const listEl = document.getElementById('missing-tickets-list');
+      if (!banner || !listEl || !Array.isArray(data)) return;
+
+      const numericEntries = data
+        .map(r => {
+          if (!r) return null;
+          const rawTicket = String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim();
+          if (!/^\d+$/.test(rawTicket)) return null;
+          const num = parseInt(rawTicket, 10);
+          const regMs = new Date(r.Timestamp || r.timestamp || 0).getTime();
+          return { num, regMs: isNaN(regMs) ? 0 : regMs };
+        })
+        .filter(Boolean);
+
+      if (numericEntries.length < 2) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      const presentSet = new Set(numericEntries.map(e => e.num));
+      const dismissedSet = getDismissedMissingTickets();
+      const sortedNums = [...presentSet].sort((a, b) => a - b);
+      const minNum = sortedNums[0];
+      const maxNum = sortedNums[sortedNums.length - 1];
+      const now = Date.now();
+
+      const earliestTimeByNum = {};
+      numericEntries.forEach(e => {
+        if (!earliestTimeByNum[e.num] || e.regMs < earliestTimeByNum[e.num]) {
+          earliestTimeByNum[e.num] = e.regMs;
+        }
+      });
+
+      const missingCandidates = [];
+      for (let n = minNum; n < maxNum; n++) {
+        if (presentSet.has(n) || dismissedSet.has(n)) continue;
+
+        let anchorTime = Infinity;
+        let anchorTicket = null;
+        for (let m = n + 1; m <= maxNum; m++) {
+          if (earliestTimeByNum[m] && earliestTimeByNum[m] < anchorTime) {
+            anchorTime = earliestTimeByNum[m];
+            anchorTicket = m;
+          }
+        }
+
+        if (anchorTicket !== null && anchorTime > 0 && (now - anchorTime) >= GAP_GRACE_PERIOD_MS) {
+          const minsAgo = Math.floor((now - anchorTime) / 60000);
+          missingCandidates.push({ num: n, anchorTicket, minsAgo });
+        }
+      }
+
+      if (missingCandidates.length === 0) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      banner.classList.remove('hidden');
+      listEl.innerHTML = missingCandidates.map(item => `
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-white border border-amber-200 px-3 py-2 rounded-xl">
+          <div class="text-xs">
+            <span class="font-black text-black text-sm mr-1.5">#${item.num}</span>
+            <span class="text-gray-600">(#${item.anchorTicket} logged ${item.minsAgo}m ago)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="prefillMissingTicket(${item.num})" class="px-2.5 py-1 bg-black hover:bg-gray-800 text-white text-[11px] font-bold rounded-lg transition">
+              + Add to queue #${item.num}
+            </button>
+            <button type="button" onclick="dismissMissingTicket(${item.num})" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-semibold rounded-lg transition" title="Ignore if slip was skipped or voided">
+              Ignore
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // STAFF SESSION AUTHORIZATION
+    function checkStaffAuth(targetTab) {
+      if (targetTab === 'display') return true;
+      
+      const isAuthed = sessionStorage.getItem('evo_staff_authed') === 'true';
+      if (!isAuthed) {
+        const modal = document.getElementById('staffPinModal');
+        if (modal) modal.classList.remove('hidden');
+        setTimeout(() => document.getElementById('staffPinInput')?.focus(), 100);
+        return false;
+      }
+      return true;
+    }
+
+    function verifyStaffPin(e) {
+      e.preventDefault();
+      const input = document.getElementById('staffPinInput');
+      if (input && input.value === STAFF_PIN) {
+        sessionStorage.setItem('evo_staff_authed', 'true');
+        const modal = document.getElementById('staffPinModal');
+        if (modal) modal.classList.add('hidden');
+        input.value = '';
+        
+        let targetTab = window.location.hash.replace('#', '').trim();
+        if (!targetTab || targetTab === 'display') {
+          targetTab = localStorage.getItem('phm_active_tab') || 'register';
+        }
+        switchTab(targetTab, true);
+      } else {
+        alert("❌ Incorrect PIN. Access denied.");
+        if (input) {
+          input.value = '';
+          input.focus();
+        }
+      }
+    }
+
+    // Modal Control Functions
+    function openChangelog() {
+      const modal = document.getElementById('changelogModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeChangelog() {
+      const modal = document.getElementById('changelogModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    window.addEventListener('click', (e) => {
+      const modal = document.getElementById('changelogModal');
+      if (e.target === modal) {
+        closeChangelog();
+      }
+    });
+
+    function formatTo24HourTime(timeStr) {
+      if (!timeStr) return '';
+      const str = String(timeStr).trim();
+      
+      if (str.includes('T')) {
+        const dateObj = new Date(str);
+        if (!isNaN(dateObj.getTime())) {
+          const hours = String(dateObj.getHours()).padStart(2, '0');
+          const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+          return `${hours}:${minutes}`;
+        }
+      }
+      
+      const ampmMatch = str.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)/i);
+      if (ampmMatch) {
+        let hours = parseInt(ampmMatch[1], 10);
+        const minutes = ampmMatch[2];
+        const period = ampmMatch[3].toUpperCase();
+        
+        if (period === 'PM' && hours < 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        
+        return `${String(hours).padStart(2, '0')}:${minutes}`;
+      }
+
+      const rawMatch = str.match(/(\d{1,2}):(\d{2})/);
+      if (rawMatch) {
+        return `${rawMatch[1].padStart(2, '0')}:${rawMatch[2]}`;
+      }
+
+      return str; 
+    }
+
+    function getCurrent24HourTime() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+
+    function toggleGroupField() {
+      const isGroup = document.getElementById('isGroupTicket')?.checked;
+      const container = document.getElementById('groupFieldContainer');
+      const sizeSelect = document.getElementById('groupSize');
+
+      if (container) {
+        if (isGroup) {
+          container.classList.remove('hidden');
+          if (sizeSelect && (!sizeSelect.value || parseInt(sizeSelect.value, 10) < 2)) {
+            sizeSelect.value = '2';
+          }
+        } else {
+          container.classList.add('hidden');
+          if (sizeSelect) sizeSelect.value = '2';
+        }
+      }
+    }
+
+    function toggleNoVaxReason() {
+      const isNoVax = document.getElementById('noVaxCheck')?.checked;
+      const reasonBox = document.getElementById('novax-reason-box');
+      const recoverySelectorBox = document.getElementById('recovery-selector-box');
+      const service = activePatient ? String(activePatient.Service || activePatient.service || '') : '';
+      const isVaccination = service.toLowerCase().includes('vaccination');
+
+      if (reasonBox) {
+        if (isNoVax) {
+          reasonBox.classList.remove('hidden');
+        } else {
+          reasonBox.classList.add('hidden');
+        }
+      }
+
+      if (recoverySelectorBox) {
+        if (isVaccination && !isNoVax) {
+          recoverySelectorBox.classList.remove('hidden');
+        } else {
+          recoverySelectorBox.classList.add('hidden');
+        }
+      }
+    }
+
+    function toggleTimeField() {
+      const isBooked = document.querySelector('input[name="appType"]:checked')?.value === 'Booked Appointment';
+      const container = document.getElementById('timeFieldContainer');
+      const timeInput = document.getElementById('appTime');
+
+      if (isBooked) {
+        container.classList.remove('hidden');
+        timeInput.required = true;
+      } else {
+        container.classList.add('hidden');
+        timeInput.required = false;
+        timeInput.value = '';
+      }
+    }
+
+    function parseTimeToMinutes(timeStr) {
+      const formatted = formatTo24HourTime(timeStr);
+      if (!formatted || !formatted.includes(':')) return -1;
+      const [h, m] = formatted.split(':').map(Number);
+      if (isNaN(h) || isNaN(m)) return -1;
+      return h * 60 + m;
+    }
+
+    function saveStationSelection() {
+      const stationEl = document.getElementById('stationSelect');
+      if (stationEl) {
+        localStorage.setItem('phm_selected_station', stationEl.value);
+      }
+      activePatientTicket = null;
+      fetchQueue();
+    }
+
+    // TAB SWITCHING FUNCTION WITH URL HASH SUPPORT
+    function switchTab(tabName, save = true) {
+      if (!checkStaffAuth(tabName)) {
+        return;
+      }
+
+      const regScreen = document.getElementById('screen-register');
+      const nurseScreen = document.getElementById('screen-nurse');
+      const recoveryScreen = document.getElementById('screen-recovery');
+      const displayScreen = document.getElementById('screen-display');
+      const adminScreen = document.getElementById('screen-admin');
+      const topHeader = document.getElementById('top-nav-header');
+
+      const tabReg = document.getElementById('tab-register');
+      const tabNurse = document.getElementById('tab-nurse');
+      const tabRecovery = document.getElementById('tab-recovery');
+      const tabDisplay = document.getElementById('tab-display');
+      const tabAdmin = document.getElementById('tab-admin');
+
+      if (tabName === 'admin' && !isAdminAuthenticated) {
+        const enteredPin = prompt("🔒 Clinic Lead Authentication Required\nEnter Admin PIN:");
+        if (enteredPin === ADMIN_PIN) {
+          isAdminAuthenticated = true;
+        } else {
+          alert("❌ Incorrect PIN. Access denied.");
+          return;
+        }
+      }
+
+      regScreen.classList.add('hidden');
+      nurseScreen.classList.add('hidden');
+      if (recoveryScreen) recoveryScreen.classList.add('hidden');
+      displayScreen.classList.add('hidden');
+      if (adminScreen) adminScreen.classList.add('hidden');
+
+      const defaultStyle = "px-3.5 py-2 rounded-lg text-sm font-semibold transition text-gray-400 hover:text-white";
+      const activeStyle = "px-3.5 py-2 rounded-lg text-sm font-semibold transition bg-white text-black shadow";
+
+      tabReg.className = defaultStyle;
+      tabNurse.className = defaultStyle;
+      if (tabRecovery) tabRecovery.className = defaultStyle;
+      tabDisplay.className = defaultStyle;
+      if (tabAdmin) tabAdmin.className = defaultStyle;
+
+      if (tabName === 'register') {
+        regScreen.classList.remove('hidden');
+        tabReg.className = activeStyle;
+        if (topHeader) topHeader.classList.remove('hidden');
+        fetchQueue();
+      } else if (tabName === 'nurse') {
+        nurseScreen.classList.remove('hidden');
+        tabNurse.className = activeStyle;
+        if (topHeader) topHeader.classList.remove('hidden');
+        fetchQueue();
+      } else if (tabName === 'recovery') {
+        if (recoveryScreen) recoveryScreen.classList.remove('hidden');
+        if (tabRecovery) tabRecovery.className = activeStyle;
+        if (topHeader) topHeader.classList.remove('hidden');
+        initRecoveryLayoutControls();
+        fetchQueue();
+      } else if (tabName === 'display') {
+        displayScreen.classList.remove('hidden');
+        tabDisplay.className = activeStyle;
+        if (topHeader) topHeader.classList.add('hidden');
+        fetchQueue();
+      } else if (tabName === 'admin') {
+        if (adminScreen) adminScreen.classList.remove('hidden');
+        if (tabAdmin) tabAdmin.className = activeStyle;
+        if (topHeader) topHeader.classList.remove('hidden');
+        fetchQueue();
+      }
+
+      if (save) {
+        localStorage.setItem('phm_active_tab', tabName);
+        window.location.hash = tabName;
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (selectedRecoveryTicket) {
+          cancelRecoverySelection();
+          return;
+        }
+        switchTab('register');
+      }
+    });
+
+    function playChimeAndAnnounce(ticketNum, stationId) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const playTone = (freq, start, duration) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.frequency.value = freq;
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + start);
+          gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + start + duration);
+          osc.stop(audioCtx.currentTime + start + duration);
+        };
+        playTone(523.25, 0, 0.6);
+        playTone(659.25, 0.3, 0.8);
+
+        setTimeout(() => {
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const spokenStation = String(stationId).replace(/\bStation\s+E\b/i, 'Station "e".');
+            const text = `Now serving number ${ticketNum} at ${spokenStation}`;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+
+            const voices = window.speechSynthesis.getVoices();
+            const femaleVoice = voices.find(v => 
+              v.lang.startsWith('en') && 
+              (v.name.includes('Samantha') || v.name.includes('Victoria') || v.name.includes('Zira') || v.name.includes('Karen') || v.name.includes('Female'))
+            ) || voices.find(v => v.lang.startsWith('en'));
+
+            if (femaleVoice) utterance.voice = femaleVoice;
+            window.speechSynthesis.speak(utterance);
+          }
+        }, 1000);
+      } catch (e) {
+        console.error("Audio playback error:", e);
+      }
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+    }
+
+    function setSafeText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.innerText = value;
+    }
+
+    function buildTimeDisplay(apptType, rawApptTime, rawRegTime) {
+      const typeStr = String(apptType || '').trim();
+      const isDropIn = typeStr.toLowerCase().includes('drop');
+      
+      const formattedApptTime = formatTo24HourTime(rawApptTime);
+      const formattedRegTime = formatTo24HourTime(rawRegTime);
+
+      if (isDropIn) {
+        const arrival = formattedRegTime || formattedApptTime || getCurrent24HourTime();
+        return `${typeStr} • Arrived: ${arrival}`;
+      } else {
+        const appt = formattedApptTime || '--:--';
+        const arrival = formattedRegTime ? ` (Arrived: ${formattedRegTime})` : '';
+        return `${typeStr} • Appt: ${appt}${arrival}`;
+      }
+    }
+
+    function getCallTimestampMs(record) {
+      const raw = record.LastCalledTime || record.lastCalledTime || record.CalledTime || record.calledTime || record.Timestamp || record.timestamp || 0;
+      const ms = new Date(raw).getTime();
+      return isNaN(ms) ? 0 : ms;
+    }
+
+    async function fetchQueue() {
+      if (!API_URL) return;
+      try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const payload = await res.json();
+
+        // Support { queue, setup }, { records, setup }, and legacy [...] array responses
+        const data = Array.isArray(payload)
+          ? payload
+          : (Array.isArray(payload.queue)
+              ? payload.queue
+              : (Array.isArray(payload.records) ? payload.records : []));
+
+        if (!Array.isArray(payload) && payload.setup) {
+          clinicSetupState = {
+            zone: payload.setup.canimmsZone || payload.setup.zone || 'WZ',
+            locationNumber: payload.setup.canimmsNumber || payload.setup.locationNumber || '01',
+            lots: payload.setup.lots || {}
+          };
+        }
+
+        latestQueueData = data;
+        updateSyncStatus(true);
+        renderClinicSetupDisplays();
+
+        // Check for missing sequence numbers (5-minute grace window)
+        checkMissingSequenceNumbers(data);
+
+        const waitingCount = data.filter(r => r && String(r.Status || r.status || '').trim() === 'Waiting').length;
+        const nurseCount = data.filter(r => r && String(r.Status || r.status || '').trim() === 'With Nurse').length;
+        const recoveryCount = data.filter(r => r && String(r.Status || r.status || '').trim() === 'In Recovery').length;
+        const completedCount = data.filter(r => r && String(r.Status || r.status || '').trim() === 'Completed').length;
+
+        // Update Counts
+        setSafeText('count-waiting', waitingCount);
+        setSafeText('count-nurse', nurseCount);
+        setSafeText('count-recovery', recoveryCount);
+        setSafeText('count-completed', completedCount);
+
+        setSafeText('count-waiting-reg', waitingCount);
+        setSafeText('count-nurse-reg', nurseCount);
+        setSafeText('count-recovery-reg', recoveryCount);
+        setSafeText('count-completed-reg', completedCount);
+
+        // Calculate Last Number Issued
+        const allValidTickets = data
+          .filter(r => r && (r.TicketNumber || r.Ticketnumber || r.ticketNum))
+          .map(r => String(r.TicketNumber || r.Ticketnumber || r.ticketNum).trim());
+        
+        const lastIssued = allValidTickets.length > 0 ? allValidTickets[allValidTickets.length - 1] : '--';
+        setSafeText('last-issued-num', lastIssued);
+
+        // Render Recent Registrations Feed (Last 10 entries)
+        const recentRegsList = document.getElementById('recent-regs-list');
+        if (recentRegsList) {
+          const validRecords = data.filter(r => r && (r.TicketNumber || r.Ticketnumber || r.ticketNum));
+          if (validRecords.length === 0) {
+            recentRegsList.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-3">No registrations logged yet.</p>';
+          } else {
+            const last10 = [...validRecords].reverse().slice(0, 10);
+            recentRegsList.innerHTML = last10.map(r => {
+              const ticket = r.TicketNumber || r.Ticketnumber || r.ticketNum || '--';
+              const service = r.Service || r.service || 'General';
+              const status = r.Status || r.status || 'Waiting';
+              const groupSize = getRecordGroupSize(r);
+              const groupPill = groupSize > 1
+                ? `<span class="ml-1.5 px-2 py-0.5 bg-sky-100 text-sky-900 text-[10px] font-black rounded-full">👥 Group of ${groupSize}</span>`
+                : '';
+              
+              let statusBadgeColor = 'bg-amber-100 text-amber-800';
+              if (status === 'With Nurse') statusBadgeColor = 'bg-blue-100 text-blue-800';
+              if (status === 'In Recovery') statusBadgeColor = 'bg-purple-100 text-purple-800';
+              if (status === 'Completed') statusBadgeColor = 'bg-emerald-100 text-emerald-800';
+
+              return `
+                <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border text-xs font-semibold">
+                  <div class="flex items-center space-x-3">
+                    <span class="text-base font-black text-black min-w-[32px]">#${ticket}</span>
+                    <div>
+                      <p class="text-gray-800">${service}${groupPill}</p>
+                    </div>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${statusBadgeColor}">${status}</span>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        // Nurse Station Active Client Card
+        const stationEl = document.getElementById('stationSelect');
+        const currentStation = stationEl ? stationEl.value : 'Station A';
+        
+        const myActive = data.find(r => {
+          if (!r) return false;
+          const status = String(r.Status || r.status || '').trim().toLowerCase();
+          const station = String(r.StationID || r.stationId || r.Station || r.station || '').trim().toLowerCase();
+          return status === 'with nurse' && station === currentStation.trim().toLowerCase();
+        });
+
+        const activeBox = document.getElementById('active-client-box');
+        const activeGroupBadge = document.getElementById('active-group-badge');
+        const recoverySelectorBox = document.getElementById('recovery-selector-box');
+        const recoveryTimeSelect = document.getElementById('recoveryTimeSelect');
+        const noVaxGroup = document.getElementById('novax-control-group');
+        const noVaxCheck = document.getElementById('noVaxCheck');
+        const noVaxReasonBox = document.getElementById('novax-reason-box');
+        const noVaxReasonSelect = document.getElementById('noVaxReasonSelect');
+        const panoNotesCheck = document.getElementById('panoNotesCheck');
+
+        if (myActive) {
+          activePatient = myActive;
+          const ticket = String(myActive.TicketNumber || myActive.Ticketnumber || myActive.ticketNum || 'N/A').trim();
+          const service = String(myActive.Service || myActive.service || '').trim();
+          const apptType = myActive.ApptType || myActive.appType || '';
+          const rawApptTime = myActive.ApptTime || myActive.appTime || '';
+          const rawRegTime = myActive.Timestamp || myActive.timestamp || '';
+          const groupSize = getRecordGroupSize(myActive);
+          
+          const timeSummary = buildTimeDisplay(apptType, rawApptTime, rawRegTime);
+
+          setSafeText('active-station-label', `Currently Serving at ${currentStation}`);
+          setSafeText('active-ticket-num', ticket);
+          setSafeText('active-service', service);
+          setSafeText('active-appt-info', timeSummary);
+
+          if (activeGroupBadge) {
+            if (groupSize > 1) {
+              activeGroupBadge.innerText = `👥 Group of ${groupSize}`;
+              activeGroupBadge.classList.remove('hidden');
+            } else {
+              activeGroupBadge.classList.add('hidden');
+            }
+          }
+
+          const isVaccination = service.toLowerCase().includes('vaccination');
+
+          if (activePatientTicket !== ticket) {
+            if (recoveryTimeSelect) recoveryTimeSelect.value = '15m';
+            if (noVaxCheck) noVaxCheck.checked = false;
+            if (noVaxReasonSelect) noVaxReasonSelect.value = 'Not eligible';
+            if (noVaxReasonBox) noVaxReasonBox.classList.add('hidden');
+            if (panoNotesCheck) panoNotesCheck.checked = false;
+          }
+
+          if (noVaxGroup) {
+            if (isVaccination) {
+              noVaxGroup.classList.remove('hidden');
+            } else {
+              noVaxGroup.classList.add('hidden');
+            }
+          }
+
+          const isNoVaxChecked = isVaccination && noVaxCheck && noVaxCheck.checked;
+          if (recoverySelectorBox) {
+            if (isVaccination && !isNoVaxChecked) {
+              recoverySelectorBox.classList.remove('hidden');
+            } else {
+              recoverySelectorBox.classList.add('hidden');
+            }
+          }
+          activePatientTicket = ticket;
+
+          if (activeBox) activeBox.classList.remove('hidden');
+        } else {
+          activePatient = null;
+          activePatientTicket = null;
+          if (activeGroupBadge) activeGroupBadge.classList.add('hidden');
+          if (activeBox) activeBox.classList.add('hidden');
+        }
+
+        // Render Waiting Queue List
+        const queueList = document.getElementById('queue-list');
+        if (queueList) {
+          queueList.innerHTML = '';
+          if (waitingCount === 0) {
+            queueList.innerHTML = '<p class="text-sm text-gray-400 italic">No clients currently waiting.</p>';
+          } else {
+            const waitingList = data.filter(r => r && String(r.Status || r.status || '').trim() === 'Waiting');
+
+            const now = new Date();
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+            waitingList.sort((a, b) => {
+              const typeA = String(a.ApptType || a.appType || '').toLowerCase();
+              const typeB = String(b.ApptType || b.appType || '').toLowerCase();
+              const isBookedA = !typeA.includes('drop');
+              const isBookedB = !typeB.includes('drop');
+
+              const timeStrA = formatTo24HourTime(a.ApptTime || a.appTime);
+              const timeStrB = formatTo24HourTime(b.ApptTime || b.appTime);
+              
+              const minsA = timeStrA ? parseTimeToMinutes(timeStrA) : -1;
+              const minsB = timeStrB ? parseTimeToMinutes(timeStrB) : -1;
+
+              const isPriorityA = isBookedA && minsA !== -1 && (nowMinutes >= minsA - 15);
+              const isPriorityB = isBookedB && minsB !== -1 && (nowMinutes >= minsB - 15);
+
+              if (isPriorityA && !isPriorityB) return -1;
+              if (!isPriorityA && isPriorityB) return 1;
+              if (isPriorityA && isPriorityB) return minsA - minsB;
+
+              const timeA = new Date(a.Timestamp || 0).getTime();
+              const timeB = new Date(b.Timestamp || 0).getTime();
+              return timeA - timeB;
+            });
+
+            waitingList.forEach(item => {
+              const ticket = item.TicketNumber || item.Ticketnumber || item.ticketNum || 'N/A';
+              const service = item.Service || item.service || '';
+              const apptType = item.ApptType || item.appType || '';
+              const rawApptTime = item.ApptTime || item.appTime || '';
+              const rawRegTime = item.Timestamp || item.timestamp || '';
+              const groupSize = getRecordGroupSize(item);
+              const groupBadge = groupSize > 1
+                ? `<span class="ml-2 px-2 py-0.5 bg-sky-100 text-sky-900 border border-sky-200 text-[10px] font-black rounded-full uppercase">👥 Group of ${groupSize}</span>`
+                : '';
+
+              const timeSummary = buildTimeDisplay(apptType, rawApptTime, rawRegTime);
+
+              const timeStr = formatTo24HourTime(rawApptTime);
+              const itemMins = timeStr ? parseTimeToMinutes(timeStr) : -1;
+              const isBooked = !String(apptType).toLowerCase().includes('drop');
+              const isOverdue = isBooked && itemMins !== -1 && (nowMinutes > itemMins);
+
+              const rowClass = isOverdue
+                ? "flex items-center justify-between p-4 bg-rose-50 rounded-xl border border-rose-200 text-rose-900 shadow-sm"
+                : "flex items-center justify-between p-4 bg-gray-50 rounded-xl border";
+
+              const row = document.createElement('div');
+              row.className = rowClass;
+              row.innerHTML = `
+                <div class="flex items-center space-x-4">
+                  <span class="text-2xl font-black ${isOverdue ? 'text-rose-700' : 'text-black'}">${ticket}</span>
+                  <div>
+                    <p class="font-bold text-sm ${isOverdue ? 'text-rose-900' : 'text-gray-800'}">
+                      ${service}${groupBadge}
+                      ${isOverdue ? '<span class="ml-2 px-2 py-0.5 bg-rose-200 text-rose-800 text-[10px] font-bold rounded-full uppercase">Overdue</span>' : ''}
+                    </p>
+                    <p class="text-xs ${isOverdue ? 'text-rose-700' : 'text-gray-500'} font-medium">${timeSummary}</p>
+                  </div>
+                </div>
+                <button type="button" class="${isOverdue ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-black text-white hover:bg-gray-800'} px-4 py-2 rounded-xl text-sm font-semibold transition">
+                  Call Patient
+                </button>
+              `;
+              
+              row.querySelector('button').onclick = function() {
+                callPatient(ticket);
+              };
+
+              queueList.appendChild(row);
+            });
+          }
+        }
+
+        // Render Recovery Grid
+        renderRecoveryGrid();
+
+        // Render Public Display Screen (sorted by LastCalledTime)
+        const calledPatients = data
+          .filter(r => r && String(r.Status || r.status || '').trim() === 'With Nurse')
+          .sort((a, b) => getCallTimestampMs(b) - getCallTimestampMs(a));
+
+        const primaryBox = document.getElementById('display-primary');
+        const sec1 = document.getElementById('display-secondary-1');
+        const sec2 = document.getElementById('display-secondary-2');
+
+        const displayScreen = document.getElementById('screen-display');
+        const isDisplayActive = displayScreen && !displayScreen.classList.contains('hidden');
+
+        if (!hasInitializedDisplayCalls) {
+          calledPatients.forEach(p => {
+            const t = p.TicketNumber || p.Ticketnumber || p.ticketNum || '';
+            const s = p.StationID || p.stationId || 'Station A';
+            const ct = getCallTimestampMs(p);
+            announcedCallIds.add(`${t}_${s}_${ct}`);
+          });
+          hasInitializedDisplayCalls = true;
+        }
+
+        if (primaryBox) {
+          if (calledPatients[0]) {
+            const t0 = calledPatients[0].TicketNumber || calledPatients[0].Ticketnumber || calledPatients[0].ticketNum || '';
+            const s0 = calledPatients[0].StationID || calledPatients[0].stationId || 'Station A';
+            const callTime0 = getCallTimestampMs(calledPatients[0]);
+            const callId = `${t0}_${s0}_${callTime0}`;
+
+            primaryBox.innerHTML = `
+              <div class="flex flex-col items-center">
+                <span class="text-sm md:text-base font-bold text-gray-400 uppercase tracking-widest mb-2">TICKET NUMBER</span>
+                <span class="text-9xl lg:text-[12rem] font-black tracking-tight leading-none text-white">${t0}</span>
+              </div>
+              <div class="w-full lg:w-auto flex flex-col items-center justify-center">
+                <span class="text-sm md:text-base font-bold text-gray-400 uppercase tracking-widest mb-3">PROCEED TO</span>
+                <span class="px-10 py-6 bg-sky-400 text-black text-5xl lg:text-7xl font-black rounded-3xl tracking-wide shadow-2xl uppercase block text-center min-w-[300px]">
+                  ${s0}
+                </span>
+              </div>
+            `;
+
+            if (!announcedCallIds.has(callId)) {
+              announcedCallIds.add(callId);
+              if (isDisplayActive) {
+                playChimeAndAnnounce(t0, s0);
+              }
+            }
+          } else {
+            primaryBox.innerHTML = `
+              <div class="flex flex-col items-center">
+                <span class="text-sm md:text-base font-bold text-gray-400 uppercase tracking-widest mb-2">TICKET NUMBER</span>
+                <span class="text-9xl lg:text-[12rem] font-black tracking-tight leading-none text-gray-600">--</span>
+              </div>
+              <div class="w-full lg:w-auto flex flex-col items-center justify-center">
+                <span class="text-sm md:text-base font-bold text-gray-400 uppercase tracking-widest mb-3">PROCEED TO</span>
+                <span class="px-10 py-6 bg-gray-800 text-gray-500 text-5xl lg:text-7xl font-black rounded-3xl tracking-wide uppercase block text-center min-w-[300px]">
+                  --
+                </span>
+              </div>
+            `;
+          }
+        }
+
+        if (sec1) {
+          if (calledPatients[1]) {
+            const t1 = calledPatients[1].TicketNumber || calledPatients[1].Ticketnumber || calledPatients[1].ticketNum || '';
+            const s1 = calledPatients[1].StationID || calledPatients[1].stationId || '';
+            sec1.innerHTML = `
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET</p>
+                <span class="text-5xl md:text-6xl font-black text-black">${t1}</span>
+              </div>
+              <span class="px-8 py-4 bg-emerald-100 text-emerald-900 text-2xl md:text-3xl font-black rounded-2xl uppercase">${s1}</span>
+            `;
+          } else {
+            sec1.innerHTML = `
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET</p>
+                <span class="text-5xl md:text-6xl font-black text-gray-300">--</span>
+              </div>
+              <span class="px-8 py-4 bg-gray-100 text-gray-400 text-2xl md:text-3xl font-black rounded-2xl uppercase">--</span>
+            `;
+          }
+        }
+
+        if (sec2) {
+          if (calledPatients[2]) {
+            const t2 = calledPatients[2].TicketNumber || calledPatients[2].Ticketnumber || calledPatients[2].ticketNum || '';
+            const s2 = calledPatients[2].StationID || calledPatients[2].stationId || '';
+            sec2.innerHTML = `
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET</p>
+                <span class="text-5xl md:text-6xl font-black text-black">${t2}</span>
+              </div>
+              <span class="px-8 py-4 bg-emerald-100 text-emerald-900 text-2xl md:text-3xl font-black rounded-2xl uppercase">${s2}</span>
+            `;
+          } else {
+            sec2.innerHTML = `
+              <div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TICKET</p>
+                <span class="text-5xl md:text-6xl font-black text-gray-300">--</span>
+              </div>
+              <span class="px-8 py-4 bg-gray-100 text-gray-400 text-2xl md:text-3xl font-black rounded-2xl uppercase">--</span>
+            `;
+          }
+        }
+
+        calculateAdminAnalytics(data);
+
+      } catch (err) {
+        console.error("Fetch error:", err);
+        updateSyncStatus(false);
+      }
+    }
+
+    // ==================== RECOVERY STATION LOGIC ====================
+
+    function parseSeatList(rawSeatStr) {
+      return String(rawSeatStr || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function clampRecoveryDim(val, min, max, fallback) {
+      const parsed = parseInt(val, 10);
+      if (isNaN(parsed)) return fallback;
+      return Math.min(max, Math.max(min, parsed));
+    }
+
+    function getRecoveryConfig() {
+      const rows = clampRecoveryDim(localStorage.getItem('evo_recovery_rows'), 1, 50, 6);
+      const seats = clampRecoveryDim(localStorage.getItem('evo_recovery_seats'), 1, 100, 12);
+      return { rows, seats };
+    }
+
+    function initRecoveryLayoutControls() {
+      const config = getRecoveryConfig();
+      const rowsEl = document.getElementById('recoveryRowsConfig');
+      const seatsEl = document.getElementById('recoverySeatsConfig');
+      if (rowsEl) rowsEl.value = config.rows;
+      if (seatsEl) seatsEl.value = config.seats;
+      updateRowFilterOptions(config.rows);
+    }
+
+    function saveRecoveryLayoutConfig() {
+      const rowsEl = document.getElementById('recoveryRowsConfig');
+      const seatsEl = document.getElementById('recoverySeatsConfig');
+      const rows = clampRecoveryDim(rowsEl?.value, 1, 50, 6);
+      const seats = clampRecoveryDim(seatsEl?.value, 1, 100, 12);
+
+      if (rowsEl) rowsEl.value = rows;
+      if (seatsEl) seatsEl.value = seats;
+
+      localStorage.setItem('evo_recovery_rows', String(rows));
+      localStorage.setItem('evo_recovery_seats', String(seats));
+
+      updateRowFilterOptions(rows);
+      renderRecoveryGrid();
+    }
+
+    function updateRowFilterOptions(maxRows) {
+      const filterEl = document.getElementById('recoveryRowFilter');
+      if (!filterEl) return;
+      const currentVal = filterEl.value;
+      
+      let html = `<option value="ALL">All Rows (1–${maxRows})</option>`;
+      for (let r = 1; r <= maxRows; r++) {
+        html += `<option value="${r}">Row ${r}</option>`;
+      }
+      filterEl.innerHTML = html;
+      
+      if (currentVal === 'ALL' || (parseInt(currentVal, 10) <= maxRows)) {
+        filterEl.value = currentVal;
+      } else {
+        filterEl.value = 'ALL';
+      }
+    }
+
+    function selectRecoveryClient(ticketNum, sourceSeatId = null) {
+      const target = String(ticketNum || '').trim();
+      if (!target) return;
+
+      const currentSelection = String(selectedRecoveryTicket || '');
+      const [prevTicket, prevSourceSeat] = currentSelection.split('::');
+
+      if (prevTicket === target && (prevSourceSeat || null) === (sourceSeatId || null)) {
+        selectedRecoveryTicket = null;
+      } else {
+        selectedRecoveryTicket = sourceSeatId ? `${target}::${sourceSeatId}` : target;
+      }
+      renderRecoveryGrid();
+    }
+
+    function cancelRecoverySelection() {
+      selectedRecoveryTicket = null;
+      renderRecoveryGrid();
+    }
+
+    function unseatMovingClient() {
+      if (!selectedRecoveryTicket) return;
+      const [ticketToUnseat, sourceSeat] = String(selectedRecoveryTicket).split('::');
+      selectedRecoveryTicket = null;
+
+      const record = latestQueueData.find(r => r && String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === ticketToUnseat);
+      if (!record) return;
+
+      const existingSeats = parseSeatList(record.RecoverySeat);
+      const remainingSeats = sourceSeat
+        ? existingSeats.filter(s => s !== sourceSeat)
+        : [];
+
+      persistSeatListForTicket(ticketToUnseat, remainingSeats.join(','));
+    }
+
+    function getRemainingRecoveryMs(record) {
+      const reqStr = String(record.RecoveryRequired || '').trim();
+      const mins = parseInt(reqStr.replace('m', ''), 10);
+      if (isNaN(mins) || mins <= 0) return 0;
+
+      const startTimestamp = record.NurseCompleteTime || record.Timestamp;
+      if (!startTimestamp) return mins * 60 * 1000;
+
+      const startTime = new Date(startTimestamp).getTime();
+      if (isNaN(startTime)) return mins * 60 * 1000;
+
+      const endTime = startTime + (mins * 60 * 1000);
+      return endTime - Date.now();
+    }
+
+    function formatCountdown(ms) {
+      if (ms <= 0) return "00:00";
+      const totalSeconds = Math.ceil(ms / 1000);
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function renderRecoveryGrid() {
+      const container = document.getElementById('recovery-rows-container');
+      if (!container) return;
+
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.tagName === 'SELECT' && container.contains(activeEl)) {
+        return; 
+      }
+
+      const config = getRecoveryConfig();
+      const maxRows = config.rows;
+      const maxSeats = config.seats;
+      const totalCapacity = maxRows * maxSeats;
+
+      const inRecovery = latestQueueData.filter(r => r && String(r.Status || r.status || '').trim() === 'In Recovery');
+
+      const seatMap = {};
+      let totalOccupiedChairs = 0;
+
+      inRecovery.forEach(r => {
+        const seats = parseSeatList(r.RecoverySeat);
+        const groupSize = getRecordGroupSize(r);
+        seats.forEach((seatId, idx) => {
+          seatMap[seatId] = {
+            record: r,
+            seatIndex: idx + 1,
+            assignedCount: seats.length,
+            groupSize: groupSize
+          };
+          totalOccupiedChairs++;
+        });
+      });
+
+      const needingSeats = inRecovery.filter(r => {
+        const assignedCount = parseSeatList(r.RecoverySeat).length;
+        const needed = getRecordGroupSize(r);
+        return assignedCount < needed;
+      });
+
+      const awaitingHeadcount = needingSeats.reduce((sum, r) => {
+        const assignedCount = parseSeatList(r.RecoverySeat).length;
+        const needed = getRecordGroupSize(r);
+        return sum + Math.max(0, needed - assignedCount);
+      }, 0);
+
+      let [selectedTicket, selectedSourceSeat] = String(selectedRecoveryTicket || '').split('::');
+      let selectedRecord = null;
+      if (selectedTicket) {
+        selectedRecord = inRecovery.find(r => String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === selectedTicket) || null;
+        if (!selectedRecord) {
+          selectedRecoveryTicket = null;
+          selectedTicket = '';
+          selectedSourceSeat = '';
+        }
+      }
+
+      setSafeText('recovery-unassigned-count', awaitingHeadcount);
+      setSafeText('recovery-seated-count', `${totalOccupiedChairs} / ${totalCapacity}`);
+
+      const movingBanner = document.getElementById('moving-client-banner');
+      const movingLabel = document.getElementById('moving-client-label');
+      if (movingBanner && movingLabel) {
+        if (selectedTicket && selectedSourceSeat) {
+          movingBanner.classList.remove('hidden');
+          movingLabel.innerText = `Relocating Client #${selectedTicket} (from ${selectedSourceSeat}) — tap any vacant chair below`;
+        } else {
+          movingBanner.classList.add('hidden');
+        }
+      }
+
+      const banner = document.getElementById('unassigned-recovery-banner');
+      const pillsContainer = document.getElementById('unassigned-recovery-pills');
+      const hintEl = document.getElementById('tap-to-seat-hint');
+      if (banner && pillsContainer) {
+        if (needingSeats.length > 0) {
+          banner.classList.remove('hidden');
+          pillsContainer.innerHTML = needingSeats.map(r => {
+            const t = String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim();
+            const dur = r.RecoveryRequired || '15m';
+            const rem = formatCountdown(getRemainingRecoveryMs(r));
+            const groupSize = getRecordGroupSize(r);
+            const assignedCount = parseSeatList(r.RecoverySeat).length;
+            const remainingSeatsNeeded = groupSize - assignedCount;
+
+            const groupTag = groupSize > 1
+              ? ` [👥 ${assignedCount}/${groupSize} seated]`
+              : '';
+            const isSelected = selectedTicket === t && !selectedSourceSeat;
+            const pillStyle = isSelected
+              ? 'bg-black text-white border-black ring-2 ring-amber-500 scale-105'
+              : 'bg-white text-amber-950 border-amber-300 hover:bg-amber-100';
+            return `
+              <button type="button" onclick="selectRecoveryClient('${t}')" class="px-3.5 py-1.5 border rounded-xl text-xs font-black shadow-sm transition cursor-pointer ${pillStyle}">
+                #${t}${groupTag} • ${dur} (${rem} left)${isSelected ? ` — tap ${remainingSeatsNeeded} chair${remainingSeatsNeeded === 1 ? '' : 's'} ✓` : ''}
+              </button>
+            `;
+          }).join('');
+          if (hintEl) {
+            if (selectedTicket && !selectedSourceSeat && selectedRecord) {
+              const gSize = getRecordGroupSize(selectedRecord);
+              const aCount = parseSeatList(selectedRecord.RecoverySeat).length;
+              const left = Math.max(1, gSize - aCount);
+              hintEl.innerText = `Selected #${selectedTicket} — tap ${left} vacant chair${left === 1 ? '' : 's'} below (or Esc to cancel)`;
+            } else {
+              hintEl.innerText = 'Tap a client pill, then tap vacant chair(s)';
+            }
+          }
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+
+      let optionsHtml = `<option value="">-- Assign Client --</option>`;
+      needingSeats.forEach(r => {
+        const t = r.TicketNumber || r.Ticketnumber || r.ticketNum;
+        const dur = r.RecoveryRequired || '15m';
+        const rem = formatCountdown(getRemainingRecoveryMs(r));
+        const groupSize = getRecordGroupSize(r);
+        const assignedCount = parseSeatList(r.RecoverySeat).length;
+        const groupTag = groupSize > 1 ? ` [👥 ${assignedCount + 1}/${groupSize}]` : '';
+        optionsHtml += `<option value="${t}">#${t}${groupTag} (${dur} - ${rem} left)</option>`;
+      });
+
+      const rowFilter = document.getElementById('recoveryRowFilter')?.value || 'ALL';
+      let gridHtml = '';
+
+      for (let row = 1; row <= maxRows; row++) {
+        if (rowFilter !== 'ALL' && String(row) !== rowFilter) continue;
+
+        let seatsHtml = '';
+        for (let seat = 1; seat <= maxSeats; seat++) {
+          const seatId = `R${row}-S${seat}`;
+          const seatInfo = seatMap[seatId];
+
+          if (seatInfo) {
+            const occupant = seatInfo.record;
+            const ticket = String(occupant.TicketNumber || occupant.Ticketnumber || occupant.ticketNum || '').trim();
+            const duration = occupant.RecoveryRequired || '15m';
+            const remMs = getRemainingRecoveryMs(occupant);
+            const remStr = formatCountdown(remMs);
+            const isExpiringSoon = remMs > 0 && remMs <= 60000;
+            const isBeingMoved = selectedTicket === ticket && selectedSourceSeat === seatId;
+
+            const groupBadge = seatInfo.groupSize > 1
+              ? `<span class="inline-block mt-1 px-1.5 py-0.5 bg-sky-200/80 text-sky-950 text-[10px] font-black rounded">👥 ${seatInfo.seatIndex}/${seatInfo.groupSize}</span>`
+              : '';
+
+            let cardBg = isExpiringSoon
+              ? "bg-amber-50 border-amber-400 text-amber-950"
+              : "bg-sky-50 border-sky-300 text-sky-950";
+            if (isBeingMoved) {
+              cardBg = "bg-sky-100 border-black text-sky-950 ring-2 ring-sky-500";
+            }
+
+            seatsHtml += `
+              <div class="${cardBg} border-2 rounded-xl p-3 flex flex-col justify-between shadow-sm min-h-[128px] transition-all">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-black uppercase tracking-wider opacity-60">Seat ${seat}</span>
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80">${duration}</span>
+                </div>
+                
+                <div class="text-center my-1.5">
+                  <span class="text-2xl font-black block leading-none">#${ticket}</span>
+                  ${groupBadge}
+                  <span data-recovery-ticket="${ticket}" class="text-sm font-mono font-black mt-1 block ${isExpiringSoon ? 'text-rose-600 animate-pulse' : 'text-sky-700'}">
+                    ${remStr}
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-1.5">
+                  <button type="button" onclick="selectRecoveryClient('${ticket}', '${seatId}')" class="py-1.5 ${isBeingMoved ? 'bg-black text-white border-black' : 'bg-white hover:bg-sky-600 text-sky-900 hover:text-white border-gray-200 hover:border-sky-600'} border rounded-lg text-[11px] font-bold transition">
+                    ${isBeingMoved ? 'Moving…' : 'Move'}
+                  </button>
+                  <button type="button" onclick="dischargeRecoveryClient('${ticket}', true)" class="py-1.5 bg-white hover:bg-rose-600 text-gray-700 hover:text-white border border-gray-200 hover:border-rose-600 rounded-lg text-[11px] font-bold transition">
+                    Clear
+                  </button>
+                </div>
+              </div>
+            `;
+          } else if (selectedTicket) {
+            seatsHtml += `
+              <button type="button" onclick="assignSeatToClient('${seatId}', '${selectedTicket}')" class="bg-amber-50/70 hover:bg-amber-100 border-2 border-dashed border-amber-400 rounded-xl p-3 flex flex-col justify-between min-h-[128px] text-left transition cursor-pointer shadow-sm">
+                <div class="flex items-center justify-between w-full">
+                  <span class="text-[10px] font-black uppercase tracking-wider text-amber-900">Seat ${seat}</span>
+                  <span class="text-[10px] font-bold text-amber-700">${selectedSourceSeat ? 'Move Here' : 'Tap to Seat'}</span>
+                </div>
+                
+                <div class="my-2 text-center w-full">
+                  <span class="inline-block px-2.5 py-1 bg-black text-white rounded-lg text-xs font-black">
+                    ${selectedSourceSeat ? `Move #${selectedTicket}` : `+ Seat #${selectedTicket}`}
+                  </span>
+                </div>
+
+                <div class="text-[10px] text-center text-amber-800 font-semibold w-full">Vacant</div>
+              </button>
+            `;
+          } else {
+            seatsHtml += `
+              <div class="bg-white border border-gray-200 rounded-xl p-3 flex flex-col justify-between min-h-[128px] hover:border-gray-300 transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Seat ${seat}</span>
+                  <span class="text-[10px] font-semibold text-emerald-600">Vacant</span>
+                </div>
+                
+                <div class="my-2">
+                  <select onchange="assignSeatToClient('${seatId}', this.value)" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-xs font-bold rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black cursor-pointer">
+                    ${optionsHtml}
+                  </select>
+                </div>
+
+                <div class="text-[10px] text-center text-gray-300 font-medium">Available</div>
+              </div>
+            `;
+          }
+        }
+
+        gridHtml += `
+          <div class="bg-gray-50/70 p-4 rounded-2xl border border-gray-200">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-black uppercase tracking-wider text-gray-700">Row ${row}</h3>
+              <span class="text-[11px] font-semibold text-gray-400">Seats 1 – ${maxSeats}</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              ${seatsHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = gridHtml;
+    }
+
+    // Live 1-second ticker for Recovery timers & Automatic Release when expired
+    setInterval(() => {
+      const inRecovery = latestQueueData.filter(r => r && String(r.Status || r.status || '').trim() === 'In Recovery');
+      if (inRecovery.length === 0) return;
+
+      const recoveryScreen = document.getElementById('screen-recovery');
+      const adminScreen = document.getElementById('screen-admin');
+      const canAutoDischarge = (recoveryScreen && !recoveryScreen.classList.contains('hidden')) ||
+                               (adminScreen && !adminScreen.classList.contains('hidden'));
+
+      inRecovery.forEach(r => {
+        const ticket = String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim();
+        if (!ticket) return;
+
+        const remMs = getRemainingRecoveryMs(r);
+        
+        document.querySelectorAll(`[data-recovery-ticket="${ticket}"]`).forEach(timerEl => {
+          timerEl.innerText = formatCountdown(remMs);
+        });
+
+        if (canAutoDischarge && remMs <= 0 && !autoDischargedTickets.has(ticket)) {
+          autoDischargedTickets.add(ticket);
+          dischargeRecoveryClient(ticket, false);
+        }
+      });
+    }, 1000);
+
+    async function persistSeatListForTicket(ticketNum, seatListCsv) {
+      const targetRecord = latestQueueData.find(r => r && String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === String(ticketNum).trim());
+      if (targetRecord) {
+        targetRecord.RecoverySeat = seatListCsv;
+        renderRecoveryGrid();
+      }
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'assign_seat',
+            ticketNum: ticketNum,
+            seatId: seatListCsv
+          })
+        });
+      } catch (err) {
+        console.error("Seat assignment error:", err);
+      }
+
+      setTimeout(fetchQueue, 400);
+    }
+
+    async function assignSeatToClient(seatId, ticketNum) {
+      if (!ticketNum) return;
+
+      const cleanTicket = String(ticketNum).trim();
+      const targetRecord = latestQueueData.find(r => r && String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === cleanTicket);
+      if (!targetRecord) return;
+
+      const groupSize = getRecordGroupSize(targetRecord);
+      let seats = parseSeatList(targetRecord.RecoverySeat);
+      const [selTicket, sourceSeat] = String(selectedRecoveryTicket || '').split('::');
+
+      if (selTicket === cleanTicket && sourceSeat) {
+        seats = seats.map(s => (s === sourceSeat ? seatId : s));
+        selectedRecoveryTicket = null;
+      } else {
+        if (!seats.includes(seatId)) {
+          if (groupSize > 1 && seats.length < groupSize) {
+            seats.push(seatId);
+          } else {
+            seats = [seatId];
+          }
+        }
+
+        if (selTicket === cleanTicket && !sourceSeat) {
+          if (seats.length >= groupSize) {
+            selectedRecoveryTicket = null;
+          }
+        }
+      }
+
+      await persistSeatListForTicket(cleanTicket, seats.join(','));
+    }
+
+    async function dischargeRecoveryClient(ticketNum, isManual = false) {
+      if (!ticketNum) return;
+
+      const cleanTicket = String(ticketNum).trim();
+      const targetRecord = latestQueueData.find(r => r && String(r.TicketNumber || r.Ticketnumber || r.ticketNum || '').trim() === cleanTicket);
+      const groupSize = getRecordGroupSize(targetRecord);
+
+      if (isManual) {
+        const label = groupSize > 1
+          ? `Clear all ${groupSize} seats and discharge Group #${cleanTicket} from recovery?`
+          : `Clear seat and discharge Client #${cleanTicket} from recovery?`;
+        const confirmed = confirm(label);
+        if (!confirmed) return;
+      }
+
+      const [selTicket] = String(selectedRecoveryTicket || '').split('::');
+      if (selTicket === cleanTicket) {
+        selectedRecoveryTicket = null;
+      }
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'discharge_recovery',
+            ticketNum: cleanTicket
+          })
+        });
+      } catch (err) {
+        console.error("Recovery discharge error:", err);
+      }
+
+      setTimeout(fetchQueue, 400);
+    }
+
+    // ==================== ANALYTICS & FORM ACTIONS ====================
+
+    function sumHeadcount(records) {
+      return records.reduce((acc, r) => acc + getRecordGroupSize(r), 0);
+    }
+
+    function calculateAdminAnalytics(data) {
+      if (!data || !Array.isArray(data)) return;
+
+      const waiting = data.filter(r => String(r.Status || r.status || '').trim() === 'Waiting');
+      const nurse = data.filter(r => String(r.Status || r.status || '').trim() === 'With Nurse');
+      const recovery = data.filter(r => String(r.Status || r.status || '').trim() === 'In Recovery');
+      const completed = data.filter(r => String(r.Status || r.status || '').trim() === 'Completed');
+
+      setSafeText('admin-count-waiting', sumHeadcount(waiting));
+      setSafeText('admin-count-nurse', sumHeadcount(nurse));
+      setSafeText('admin-count-recovery', sumHeadcount(recovery));
+      setSafeText('admin-count-completed', sumHeadcount(completed));
+      setSafeText('admin-completed-tickets-sub', `${completed.length} ticket${completed.length === 1 ? '' : 's'}`);
+
+      let totalWaitMs = 0, waitCount = 0;
+      let totalConsultMs = 0, consultCount = 0;
+
+      data.forEach(r => {
+        const regTime = new Date(r.Timestamp || 0).getTime();
+        const callTime = new Date(r.CalledTime || 0).getTime();
+        const compTime = new Date(r.NurseCompleteTime || 0).getTime();
+
+        if (regTime > 0 && callTime > regTime) {
+          waitCount++;
+          totalWaitMs += (callTime - regTime);
+        } else if (regTime > 0 && (r.Status === 'With Nurse' || r.Status === 'In Recovery' || r.Status === 'Completed')) {
+          waitCount++;
+          totalWaitMs += (10 * 60 * 1000);
+        }
+
+        if (callTime > 0 && compTime > callTime) {
+          consultCount++;
+          totalConsultMs += (compTime - callTime);
+        } else if (regTime > 0 && (r.Status === 'In Recovery' || r.Status === 'Completed')) {
+          consultCount++;
+          totalConsultMs += (12 * 60 * 1000);
+        }
+      });
+
+      const avgWaitMin = waitCount > 0 ? Math.round((totalWaitMs / waitCount) / 60000) : 0;
+      const avgConsultMin = consultCount > 0 ? Math.round((totalConsultMs / consultCount) / 60000) : 0;
+
+      setSafeText('admin-avg-wait', `${avgWaitMin}m`);
+      setSafeText('admin-avg-consult', `${avgConsultMin}m`);
+
+      const services = {};
+      let dropInClients = 0;
+      let bookedClients = 0;
+      let groupTicketCount = 0;
+
+      let noVaxTotal = 0;
+      let noVaxIneligible = 0;
+      let noVaxDeclined = 0;
+      let noVaxContraindicated = 0;
+      let panoTotal = 0;
+
+      data.forEach(r => {
+        const headcount = getRecordGroupSize(r);
+        if (headcount > 1) groupTicketCount++;
+
+        const s = r.Service || r.service || 'Unspecified';
+        services[s] = (services[s] || 0) + headcount;
+
+        const type = String(r.ApptType || r.appType || '').toLowerCase();
+        if (type.includes('drop')) {
+          dropInClients += headcount;
+        } else {
+          bookedClients += headcount;
+        }
+
+        const isNoVax = getRecordFlag(r, 'NoVax') === 1;
+        if (isNoVax) {
+          noVaxTotal += headcount;
+          const reason = getRecordField(r, 'Reason').toLowerCase();
+          if (reason.includes('eligible')) {
+            noVaxIneligible += headcount;
+          } else if (reason.includes('declined')) {
+            noVaxDeclined += headcount;
+          } else if (reason.includes('contra')) {
+            noVaxContraindicated += headcount;
+          }
+        }
+
+        if (getRecordFlag(r, 'Pano') === 1) {
+          panoTotal += 1;
+        }
+      });
+
+      setSafeText('admin-novax-total', noVaxTotal);
+      setSafeText('admin-novax-ineligible', noVaxIneligible);
+      setSafeText('admin-novax-declined', noVaxDeclined);
+      setSafeText('admin-novax-contraindicated', noVaxContraindicated);
+      setSafeText('admin-pano-total', panoTotal);
+
+      const serviceEl = document.getElementById('admin-service-summary');
+      if (serviceEl) {
+        let serviceHtml = Object.entries(services).map(([srv, count]) => `
+          <div class="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border">
+            <span class="text-gray-700">${srv}</span>
+            <span class="font-black text-black">${count}</span>
+          </div>
+        `).join('');
+
+        serviceHtml += `
+          <div class="mt-4 pt-3 border-t border-gray-200">
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Appointment Type Tally</p>
+            <div class="grid grid-cols-3 gap-2">
+              <div class="bg-gray-50 p-2.5 rounded-xl border text-center">
+                <span class="text-[11px] text-gray-500 block">Drop-ins</span>
+                <span class="font-black text-black text-base">${dropInClients}</span>
+              </div>
+              <div class="bg-gray-50 p-2.5 rounded-xl border text-center">
+                <span class="text-[11px] text-gray-500 block">Booked</span>
+                <span class="font-black text-black text-base">${bookedClients}</span>
+              </div>
+              <div class="bg-sky-50 p-2.5 rounded-xl border border-sky-200 text-center">
+                <span class="text-[11px] text-sky-800 block">Groups</span>
+                <span class="font-black text-sky-950 text-base">${groupTicketCount}</span>
+              </div>
+            </div>
+          </div>
+        `;
+
+        serviceEl.innerHTML = serviceHtml || '<p class="text-gray-400 italic">No data available.</p>';
+      }
+
+      const hours = {};
+      data.forEach(r => {
+        if (r.Timestamp) {
+          const h = new Date(r.Timestamp).getHours();
+          if (!isNaN(h)) {
+            const key = `${String(h).padStart(2, '0')}:00`;
+            hours[key] = (hours[key] || 0) + getRecordGroupSize(r);
+          }
+        }
+      });
+
+      const hourlyEl = document.getElementById('admin-hourly-summary');
+      if (hourlyEl) {
+        const hourKeys = Object.keys(hours).sort();
+        hourlyEl.innerHTML = hourKeys.map(h => `
+          <div class="bg-gray-50 p-3 rounded-xl border">
+            <span class="text-gray-400 block mb-1">${h}</span>
+            <span class="text-lg font-black text-black">${hours[h]}</span>
+          </div>
+        `).join('') || '<p class="text-gray-400 italic col-span-full">No hourly records.</p>';
+      }
+
+      const stations = {};
+      data.filter(r => r.StationID || r.stationId).forEach(r => {
+        const st = r.StationID || r.stationId;
+        const headcount = getRecordGroupSize(r);
+        if (!stations[st]) stations[st] = { count: 0, services: {} };
+        stations[st].count += headcount;
+        const srv = r.Service || r.service || 'General';
+        stations[st].services[srv] = (stations[st].services[srv] || 0) + headcount;
+      });
+
+      const stationTable = document.getElementById('admin-station-table');
+      if (stationTable) {
+        const rows = Object.entries(stations).map(([st, info]) => {
+          const srvList = Object.entries(info.services).map(([s, c]) => `${s}: ${c}`).join(', ');
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="py-3 font-bold">${st}</td>
+              <td class="py-3">${info.count}</td>
+              <td class="py-3">${(info.count / 4).toFixed(1)} / hr</td>
+              <td class="py-3 text-xs text-gray-600">${srvList}</td>
+              <td class="py-3">${avgConsultMin > 0 ? avgConsultMin + 'm' : '~12m'}</td>
+            </tr>
+          `;
+        }).join('');
+
+        stationTable.innerHTML = rows || '<tr><td colspan="5" class="py-4 text-center text-gray-400 italic">No station activity recorded.</td></tr>';
+      }
+    }
+
+    async function submitRegistration(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      const alertMsg = document.getElementById('alertMsg');
+      if (btn) {
+        btn.innerText = "Adding...";
+        btn.disabled = true;
+      }
+
+      const selectedAppType = document.querySelector('input[name="appType"]:checked')?.value || 'Drop-in';
+      const inputTime = document.getElementById('appTime')?.value || '';
+
+      let finalAppTime = inputTime;
+      if (selectedAppType.toLowerCase().includes('drop') || !inputTime) {
+        finalAppTime = getCurrent24HourTime();
+      }
+
+      const isGroup = document.getElementById('isGroupTicket')?.checked;
+      const rawGroupSize = parseInt(document.getElementById('groupSize')?.value || '2', 10);
+      const groupSize = isGroup && !isNaN(rawGroupSize) && rawGroupSize >= 2 ? rawGroupSize : 1;
+
+      const ticketVal = document.getElementById('ticketNum').value.trim();
+      autoDischargedTickets.delete(ticketVal);
+
+      const payload = {
+        action: 'add',
+        ticketNum: ticketVal,
+        service: document.getElementById('service').value,
+        appType: selectedAppType,
+        appTime: finalAppTime,
+        groupSize: groupSize
+      };
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error("Submission error:", err);
+      }
+
+      document.getElementById('regForm').reset();
+      toggleTimeField();
+      toggleGroupField();
+      if (btn) {
+        btn.innerText = "Add Client to Queue";
+        btn.disabled = false;
+      }
+
+      if (alertMsg) {
+        alertMsg.innerText = groupSize > 1
+          ? `✓ Number issued and group of ${groupSize} added to queue successfully!`
+          : "✓ Number issued and client added to queue successfully!";
+        alertMsg.classList.remove('hidden');
+        setTimeout(() => alertMsg.classList.add('hidden'), 3000);
+      }
+      setTimeout(fetchQueue, 500);
+    }
+
+    async function callPatient(ticketNum) {
+      const stationEl = document.getElementById('stationSelect');
+      const station = stationEl ? stationEl.value : 'Station A';
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'call', ticketNum: ticketNum, stationId: station })
+        });
+      } catch (err) {
+        console.error("Call error:", err);
+      }
+      
+      await fetchQueue();
+    }
+
+    async function recallCurrentPatient() {
+      let ticket = activePatient ? (activePatient.TicketNumber || activePatient.Ticketnumber || activePatient.ticketNum) : null;
+      
+      if (!ticket || ticket === 'N/A' || ticket === '--') {
+        const domTicket = document.getElementById('active-ticket-num');
+        if (domTicket) ticket = domTicket.innerText.trim();
+      }
+
+      const stationSelect = document.getElementById('stationSelect');
+      const station = stationSelect ? stationSelect.value : 'Station A';
+
+      if (!ticket || ticket === 'N/A' || ticket === '--') return;
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'call',
+            ticketNum: ticket,
+            stationId: station
+          })
+        });
+      } catch (err) {
+        console.error("Error sending recall request:", err);
+      }
+
+      await fetchQueue();
+    }
+
+    async function returnPatientToQueue() {
+      let ticket = activePatient ? (activePatient.TicketNumber || activePatient.Ticketnumber || activePatient.ticketNum) : null;
+      
+      if (!ticket) {
+        const domTicket = document.getElementById('active-ticket-num');
+        if (domTicket) ticket = domTicket.innerText.trim();
+      }
+
+      if (!ticket || ticket === 'N/A' || ticket === '--') return;
+
+      const confirmReturn = confirm(`↩ RETURN CLIENT TO QUEUE:\n\nAre you sure you want to return Client #${ticket} back to the waiting queue?`);
+      if (!confirmReturn) return;
+
+      const activeBox = document.getElementById('active-client-box');
+      if (activeBox) activeBox.classList.add('hidden');
+      activePatient = null;
+      activePatientTicket = null;
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'return_to_queue', ticketNum: ticket })
+        });
+      } catch (err) {
+        console.error("Return to queue error:", err);
+      }
+      setTimeout(fetchQueue, 500);
+    }
+
+    async function completeCurrentPatient() {
+      let ticket = activePatient ? (activePatient.TicketNumber || activePatient.Ticketnumber || activePatient.ticketNum) : null;
+      const service = activePatient ? String(activePatient.Service || activePatient.service || '') : '';
+      
+      if (!ticket) {
+        const domTicket = document.getElementById('active-ticket-num');
+        if (domTicket) ticket = domTicket.innerText.trim();
+      }
+
+      if (!ticket) return;
+
+      const isVaccination = service.toLowerCase().includes('vaccination');
+      const noVaxCheck = document.getElementById('noVaxCheck');
+      const noVaxReasonSelect = document.getElementById('noVaxReasonSelect');
+      const panoNotesCheck = document.getElementById('panoNotesCheck');
+
+      const isNoVax = isVaccination && noVaxCheck && noVaxCheck.checked ? 1 : 0;
+      const reason = isNoVax === 1 && noVaxReasonSelect ? noVaxReasonSelect.value : '';
+      const pano = panoNotesCheck && panoNotesCheck.checked ? 1 : 0;
+
+      let recoveryTime = 'N/A';
+      if (isVaccination && isNoVax === 0) {
+        const recSelect = document.getElementById('recoveryTimeSelect');
+        recoveryTime = recSelect ? recSelect.value : '15m';
+      }
+
+      const activeBox = document.getElementById('active-client-box');
+      if (activeBox) activeBox.classList.add('hidden');
+      activePatient = null;
+      activePatientTicket = null;
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ 
+            action: 'complete', 
+            ticketNum: ticket,
+            recoveryTime: recoveryTime,
+            noVax: isNoVax,
+            reason: reason,
+            pano: pano
+          })
+        });
+      } catch (err) {
+        console.error("Completion error:", err);
+      }
+      setTimeout(fetchQueue, 500);
+    }
+
+    async function closeAndArchiveClinic() {
+      const confirmClose = confirm("📁 CLOSE CLINIC & ARCHIVE DATA:\n\nThis will archive today's clinic data to the master database and reset the current queue. Jeff may not have time to save you from yourself if you continue and have regrets.\n\nDo you wish to proceed?");
+      if (!confirmClose) return;
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'archive_and_reset' })
+        });
+        alert("✓ Clinic data archived successfully! Queue has been reset for the next operational day.");
+        autoDischargedTickets.clear();
+        announcedCallIds.clear();
+        localStorage.removeItem('evo_dismissed_missing_tickets');
+        fetchQueue();
+      } catch (err) {
+        console.error("Archive error:", err);
+        alert("Error archiving clinic data. Please check connection.");
+      }
+    }
+
+    async function resetQueueSheet() {
+      const confirmReset = confirm("⚠️ RESET QUEUE:\n\nAre you sure you want to permanently clear all entries for the current clinic? The data will be forever lost and Jeff can't get it back even if he wanted to help you - which he does not.");
+      if (!confirmReset) return;
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'clear' })
+        });
+        alert("✓ Queue sheet reset successfully.");
+        autoDischargedTickets.clear();
+        announcedCallIds.clear();
+        localStorage.removeItem('evo_dismissed_missing_tickets');
+        fetchQueue();
+      } catch (err) {
+        console.error("Reset error:", err);
+      }
+    }
+
+    // Restore saved user state on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedStation = localStorage.getItem('phm_selected_station');
+      if (savedStation) {
+        const stationEl = document.getElementById('stationSelect');
+        if (stationEl) stationEl.value = savedStation;
+      }
+
+      renderClinicSetupDisplays();
+
+      let initialTab = window.location.hash.replace('#', '').trim();
+      
+      if (!initialTab || initialTab === 'display') {
+        const savedTab = localStorage.getItem('phm_active_tab');
+        initialTab = (savedTab && savedTab !== 'display') ? savedTab : 'register';
+      }
+
+      if (window.location.hash.trim() === '#display') {
+        switchTab('display', true);
+      } else if (checkStaffAuth(initialTab)) {
+        switchTab(initialTab, true);
+      }
+    });
+
+    setInterval(fetchQueue, 3000);
+</script>
+</body>
+</html>
