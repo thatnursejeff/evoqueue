@@ -243,7 +243,7 @@
           </div>
         </div>
 
-        <!-- Collapsible Active Vaccine Products & Lot Numbers Table -->
+        <!-- Collapsible Active Vaccine Products & Lot Numbers Table (2 Columns) -->
         <div id="nurse-products-drawer" class="hidden pt-3 border-t border-gray-200">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-black uppercase tracking-wider text-gray-500">Today's Active Vaccines & Lot Numbers</span>
@@ -251,8 +251,8 @@
               ✕ Hide
             </button>
           </div>
-          <div id="nurse-products-table-container" class="overflow-x-auto">
-            <p class="text-xs text-gray-400 italic py-2">No vaccine lot numbers configured for today.</p>
+          <div id="nurse-products-table-container" class="overflow-x-auto border border-gray-200 rounded-xl max-w-md">
+            <p class="text-xs text-gray-400 italic p-3">No vaccine lot numbers configured for today.</p>
           </div>
         </div>
       </div>
@@ -560,25 +560,26 @@
           </button>
         </div>
 
-        <!-- Editable 2-Row Vaccine Table (Shown when "Configure vaccines" is checked) -->
+        <!-- Editable 2-Column Vaccine Table (Shown when "Configure vaccines" is checked) -->
         <div id="vaccine-config-edit-container" class="hidden pt-2">
           <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Enter Lot Numbers for Today's Clinic (Leave blank if not offered)</p>
-          <div class="overflow-x-auto border border-gray-200 rounded-xl">
-            <table class="min-w-max border-collapse text-left text-xs">
+          <div class="overflow-x-auto border border-gray-200 rounded-xl max-w-md">
+            <table class="w-full border-collapse text-left text-xs">
               <thead>
-                <tr id="vaccine-edit-header-row" class="bg-gray-100 border-b border-gray-200"></tr>
+                <tr class="bg-gray-100 border-b border-gray-200">
+                  <th class="px-4 py-2 font-black uppercase tracking-wider text-gray-600 border-r border-gray-200">Vaccine</th>
+                  <th class="px-4 py-2 font-black uppercase tracking-wider text-gray-600">Lot Number</th>
+                </tr>
               </thead>
-              <tbody>
-                <tr id="vaccine-edit-input-row" class="bg-white"></tr>
-              </tbody>
+              <tbody id="vaccine-edit-tbody" class="bg-white"></tbody>
             </table>
           </div>
         </div>
 
-        <!-- Read-Only 2-Row Active Vaccines Summary (Shown after saving when "Configure vaccines" is unchecked) -->
+        <!-- Read-Only 2-Column Active Vaccines Summary (Shown after saving when "Configure vaccines" is unchecked) -->
         <div id="vaccine-config-readonly-container" class="hidden pt-2">
           <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 mb-2">Active Clinic Vaccines & Lot Numbers (Read-Only)</p>
-          <div id="vaccine-readonly-table-wrapper" class="overflow-x-auto border border-gray-200 rounded-xl"></div>
+          <div id="vaccine-readonly-table-wrapper" class="overflow-x-auto border border-gray-200 rounded-xl max-w-md"></div>
         </div>
       </div>
 
@@ -751,11 +752,11 @@
           <ul class="space-y-1.5 text-gray-600 text-xs">
             <li class="flex items-start space-x-2">
               <span class="text-black font-bold">•</span>
-              <span>Added Daily Clinic & CanImms Setup at the top of the Admin screen with Zone (WZ, CZ, EZ, NZ), CanImmunize # (01–09), Day of Week (Monday–Friday), Location, and a "Configure vaccines" 2-row lot number grid that locks to a read-only active products view once saved.</span>
+              <span>Added Daily Clinic & CanImms Setup at the top of the Admin screen with Zone (WZ, CZ, EZ, NZ), CanImmunize # (01–09), Day of Week (Monday–Sunday), Location, and a "Configure vaccines" 2-column lot number table that locks to a read-only active products view once saved.</span>
             </li>
             <li class="flex items-start space-x-2">
               <span class="text-black font-bold">•</span>
-              <span>Added "CanImms Location" readout (e.g., WZ 05 Friday) and collapsible "Show Products" 2-row vaccine/lot table on the Nurse Station screen.</span>
+              <span>Added "CanImms Location" readout (e.g., WZ 05 Friday) and collapsible "Show Products" 2-column vaccine/lot table on the Nurse Station screen.</span>
             </li>
           </ul>
         </div>
@@ -1066,26 +1067,24 @@
     // ==================== CLINIC SETUP & VACCINE PRODUCTS ====================
 
     function buildEditableVaccineTable(lotsMap = {}) {
-      const headerRow = document.getElementById('vaccine-edit-header-row');
-      const inputRow = document.getElementById('vaccine-edit-input-row');
-      if (!headerRow || !inputRow) return;
+      const tbody = document.getElementById('vaccine-edit-tbody');
+      if (!tbody) return;
 
-      headerRow.innerHTML = VACCINE_PRODUCTS.map(vax => `
-        <th class="px-3 py-2 font-black text-gray-800 border-r border-gray-200 last:border-r-0 whitespace-nowrap">${escapeHtml(vax)}</th>
-      `).join('');
-
-      inputRow.innerHTML = VACCINE_PRODUCTS.map(vax => {
+      tbody.innerHTML = VACCINE_PRODUCTS.map(vax => {
         const val = lotsMap && lotsMap[vax] ? String(lotsMap[vax]) : '';
         return `
-          <td class="p-2 border-r border-gray-200 last:border-r-0">
-            <input
-              type="text"
-              data-vaccine-lot="${escapeHtml(vax)}"
-              value="${escapeHtml(val)}"
-              placeholder="Lot #"
-              class="w-28 px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-lg font-mono font-bold text-xs text-black focus:outline-none focus:ring-2 focus:ring-black"
-            />
-          </td>
+          <tr class="border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+            <td class="px-4 py-2 font-black text-gray-800 border-r border-gray-200 whitespace-nowrap">${escapeHtml(vax)}</td>
+            <td class="px-3 py-1.5">
+              <input
+                type="text"
+                data-vaccine-lot="${escapeHtml(vax)}"
+                value="${escapeHtml(val)}"
+                placeholder="Enter lot #"
+                class="w-full max-w-[200px] px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-lg font-mono font-bold text-xs text-black focus:outline-none focus:ring-2 focus:ring-black"
+              />
+            </td>
+          </tr>
         `;
       }).join('');
     }
@@ -1099,29 +1098,28 @@
         return '<p class="text-xs text-gray-400 italic p-3">No active vaccine lot numbers configured.</p>';
       }
 
-      const topRow = activeEntries.map(item => `
-        <th class="px-3.5 py-2 bg-gray-100 font-black text-gray-800 border-r border-b border-gray-200 last:border-r-0 whitespace-nowrap">${escapeHtml(item.vax)}</th>
-      `).join('');
+      const rowsHtml = activeEntries.map(item => {
+        const lotCell = allowCopy
+          ? `<button type="button" onclick="copyLotNumber('${escapeHtml(item.lot)}', this)" class="hover:text-sky-600 underline decoration-dotted underline-offset-2 text-left" title="Tap to copy lot number">${escapeHtml(item.lot)}</button>`
+          : escapeHtml(item.lot);
 
-      const bottomRow = activeEntries.map(item => {
-        if (allowCopy) {
-          return `
-            <td class="px-3.5 py-2 bg-white font-mono font-black text-sky-950 border-r border-gray-200 last:border-r-0 whitespace-nowrap">
-              <button type="button" onclick="copyLotNumber('${escapeHtml(item.lot)}', this)" class="hover:text-sky-600 underline decoration-dotted underline-offset-2" title="Tap to copy lot number">
-                ${escapeHtml(item.lot)}
-              </button>
-            </td>
-          `;
-        }
         return `
-          <td class="px-3.5 py-2 bg-white font-mono font-black text-gray-900 border-r border-gray-200 last:border-r-0 whitespace-nowrap">${escapeHtml(item.lot)}</td>
+          <tr class="border-b border-gray-200 last:border-b-0 bg-white">
+            <td class="px-4 py-2 font-black text-gray-800 border-r border-gray-200 whitespace-nowrap">${escapeHtml(item.vax)}</td>
+            <td class="px-4 py-2 font-mono font-black ${allowCopy ? 'text-sky-950' : 'text-gray-900'} whitespace-nowrap">${lotCell}</td>
+          </tr>
         `;
       }).join('');
 
       return `
-        <table class="min-w-max border-collapse text-left text-xs">
-          <thead><tr>${topRow}</tr></thead>
-          <tbody><tr>${bottomRow}</tr></tbody>
+        <table class="w-full max-w-md border-collapse text-left text-xs">
+          <thead>
+            <tr class="bg-gray-100 border-b border-gray-200">
+              <th class="px-4 py-2 font-black uppercase tracking-wider text-gray-600 border-r border-gray-200">Vaccine</th>
+              <th class="px-4 py-2 font-black uppercase tracking-wider text-gray-600">Lot Number</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
         </table>
       `;
     }
@@ -1212,7 +1210,6 @@
       const clinicLocation = document.getElementById('setupLocation')?.value || '';
       const configCheck = document.getElementById('configureVaccinesCheck');
 
-      // Collect lots from edit inputs if visible; otherwise preserve existing saved lots
       let lotsPayload = { ...(latestClinicSetup.lots || {}) };
       if (configCheck && configCheck.checked) {
         lotsPayload = {};
@@ -1252,7 +1249,6 @@
           };
         }
 
-        // Collapse edit table and show read-only summary of configured vaccines
         if (configCheck) configCheck.checked = false;
         const editContainer = document.getElementById('vaccine-config-edit-container');
         if (editContainer) editContainer.classList.add('hidden');
