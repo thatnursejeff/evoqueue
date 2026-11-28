@@ -18,7 +18,7 @@
       </a>
       <div class="flex items-center gap-2 mt-0.5">
         <button type="button" onclick="openChangelog()" style="font-size: 10px;" class="text-gray-400 hover:text-white font-mono leading-none transition focus:outline-none" title="Click to view recent changes">
-          v1.4.0 - Changelog
+          v1.4.1 - Changelog
         </button>
         <span class="text-gray-700 text-[10px]">•</span>
         <span id="sync-status-badge" class="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400">
@@ -280,7 +280,7 @@
               </div>
             </div>
 
-            <!-- VACCINATION RECOVERY TIME SELECTOR (SHOWN ONLY FOR VACCINATIONS WHEN NOT EXCLUDED) -->
+            <!-- VACCINATION RECOVERY TIME SELECTOR (SHOWN FOR ALL VACCINATIONS) -->
             <div id="recovery-selector-box" class="mb-4 bg-gray-900 p-3.5 rounded-xl border border-gray-800 hidden">
               <label for="recoveryTimeSelect" class="block text-[11px] font-bold uppercase tracking-wider text-sky-400 mb-1.5">
                 ⏱ Recovery Time Required
@@ -743,19 +743,32 @@
       
       <div class="space-y-4 text-sm max-h-72 overflow-y-auto pr-1">
 
-        <!-- VERSION 1.4.0 -->
+        <!-- VERSION 1.4.1 -->
         <div>
           <div class="flex items-center justify-between mb-1">
-            <span class="font-black text-black text-sm">Version 1.4.0</span>
+            <span class="font-black text-black text-sm">Version 1.4.1</span>
             <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Current</span>
           </div>
           <ul class="space-y-1.5 text-gray-600 text-xs">
             <li class="flex items-start space-x-2">
               <span class="text-black font-bold">•</span>
+              <span>Decoupled "Could not vaccinate" from bypassing Recovery so multi-vaccine clients who decline or are ineligible for one product still route to Recovery based on the nurse's selected recovery duration (or complete immediately if "Declined" is selected).</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- VERSION 1.4.0 -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-gray-700 text-xs">Version 1.4.0</span>
+          </div>
+          <ul class="space-y-1.5 text-gray-500 text-xs">
+            <li class="flex items-start space-x-2">
+              <span class="text-gray-400 font-bold">•</span>
               <span>Added Daily Clinic & CanImms Setup at the top of the Admin screen with Zone (WZ, CZ, EZ, NZ), CanImmunize # (01–09), Day of Week (Monday–Sunday), Location, and a "Configure vaccines" 2-column lot number table that locks to a read-only active products view once saved.</span>
             </li>
             <li class="flex items-start space-x-2">
-              <span class="text-black font-bold">•</span>
+              <span class="text-gray-400 font-bold">•</span>
               <span>Added "CanImms Location" readout (e.g., WZ 05 Friday) and collapsible "Show Products" 2-column vaccine/lot table on the Nurse Station screen.</span>
             </li>
           </ul>
@@ -1578,23 +1591,12 @@
     function toggleNoVaxReason() {
       const isNoVax = document.getElementById('noVaxCheck')?.checked;
       const reasonBox = document.getElementById('novax-reason-box');
-      const recoverySelectorBox = document.getElementById('recovery-selector-box');
-      const service = activePatient ? String(activePatient.Service || activePatient.service || '') : '';
-      const isVaccination = service.toLowerCase().includes('vaccination');
 
       if (reasonBox) {
         if (isNoVax) {
           reasonBox.classList.remove('hidden');
         } else {
           reasonBox.classList.add('hidden');
-        }
-      }
-
-      if (recoverySelectorBox) {
-        if (isVaccination && !isNoVax) {
-          recoverySelectorBox.classList.remove('hidden');
-        } else {
-          recoverySelectorBox.classList.add('hidden');
         }
       }
     }
@@ -1940,9 +1942,8 @@
             }
           }
 
-          const isNoVaxChecked = isVaccination && noVaxCheck && noVaxCheck.checked;
           if (recoverySelectorBox) {
-            if (isVaccination && !isNoVaxChecked) {
+            if (isVaccination) {
               recoverySelectorBox.classList.remove('hidden');
             } else {
               recoverySelectorBox.classList.add('hidden');
@@ -2982,7 +2983,7 @@
       const pano = panoNotesCheck && panoNotesCheck.checked ? 1 : 0;
 
       let recoveryTime = 'N/A';
-      if (isVaccination && isNoVax === 0) {
+      if (isVaccination) {
         const recSelect = document.getElementById('recoveryTimeSelect');
         recoveryTime = recSelect ? recSelect.value : '15m';
       }
